@@ -1,0 +1,4 @@
+1. Compute velocity field - vorton tree
+2. Vortex stretch/tilt - velocity field, vorton tree
+3. Diffusion - vorton tree
+4. Advection - velocity field
