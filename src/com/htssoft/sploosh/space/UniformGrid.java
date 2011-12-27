@@ -18,9 +18,9 @@ public class UniformGrid<T> {
 		extent.set(max).subtractLocal(min);
 		this.defaultValue = defaultValue;
 		
-		nCells[0] = (int) (FastMath.ceil(extent.x / cellsPerUnit));
-		nCells[1] = (int) (FastMath.ceil(extent.y / cellsPerUnit));
-		nCells[2] = (int) (FastMath.ceil(extent.z / cellsPerUnit));
+		nCells[0] = (int) (FastMath.ceil(extent.x * cellsPerUnit));
+		nCells[1] = (int) (FastMath.ceil(extent.y * cellsPerUnit));
+		nCells[2] = (int) (FastMath.ceil(extent.z * cellsPerUnit));
 		
 		values = (T[]) new Object[nCells[0] * nCells[1] * nCells[2]];
 	}

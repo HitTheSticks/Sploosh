@@ -1,6 +1,7 @@
 package com.htssoft.sploosh.space;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -39,6 +40,10 @@ public class OTree {
 		
 		public Vector3f getMax(){
 			return cellMax;
+		}
+		
+		public void getItems(Collection<Vorton> store){
+			store.addAll(items);
 		}
 		
 		/**
@@ -134,6 +139,20 @@ public class OTree {
 				children[index] = new OTreeNode();
 			}
 			return children[index];
+		}
+		
+		public void getLeaves(ArrayList<OTreeNode> store){
+			if (items != null){
+				store.add(this);
+				return;
+			}
+			
+			for (OTreeNode child : children){
+				if (child == null){
+					continue;
+				}
+				child.getLeaves(store);
+			}
 		}
 		
 		/**
