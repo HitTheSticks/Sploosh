@@ -12,10 +12,13 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
 public class VortonSpace {
-	public static final float VORTON_RADIUS = 0.001f;
+	public static final float VORTON_RADIUS = 0.01f;
+	public static final float VORTON_RADIUS_SQ = VORTON_RADIUS * VORTON_RADIUS;
 	public static final float VORTON_RADIUS_CUBE = VORTON_RADIUS * VORTON_RADIUS * VORTON_RADIUS;
+	public static final float AVOID_SINGULARITY = FastMath.pow(Float.MIN_VALUE, 1f / 3f);
 	public static final float ONE_OVER_4_PI = 1f / (4f * FastMath.PI);
-	public static final float JACOBIAN_D = 0.01f;
+	public static final float FOUR_THIRDS_PI = (4f / 3f) * FastMath.PI;
+	public static final float JACOBIAN_D = 0.001f;
 	public static final float DT = 1f / 60f;
 	public static final Vector3f[] jacobianOffsets = {
 		new Vector3f(-JACOBIAN_D, 0, 0),
@@ -35,8 +38,7 @@ public class VortonSpace {
 	protected int gridResolution;
 	protected AtomicInteger outstandingWorkItems = new AtomicInteger();
 	protected float timeAccumulator = 0f;
-	protected ArrayList<Thread> stretchThreads = new ArrayList<Thread>();
-	protected ArrayList<Thread> advectThreads = new ArrayList<Thread>();
+	protected ArrayList<Thread> threads = new ArrayList<Thread>();
 	protected float viscosity = 0.5f;
 	
 	/**
@@ -57,26 +59,32 @@ public class VortonSpace {
 			StretchThread st = new StretchThread();
 			Thread t = new Thread(st);
 			t.setDaemon(true);
-			stretchThreads.add(t);
+			threads.add(t);
 			t.start();
 			
 			AdvectThread at = new AdvectThread();
 			t = new Thread(at);
 			t.setDaemon(true);
-			advectThreads.add(t);
+			threads.add(t);
 			t.start();
 			
 			DiffuseThread d = new DiffuseThread();
 			t = new Thread(d);
 			t.setDaemon(true);
-			advectThreads.add(t);
+			threads.add(t);
 			t.start();
 			
 			TracerThread tt = new TracerThread();
 			t = new Thread(tt);
 			t.setDaemon(true);
-			advectThreads.add(t);
+			threads.add(t);
 			t.start();
+		}
+	}
+	
+	public void finalize(){
+		for (Thread t : threads){
+			t.interrupt();
 		}
 	}
 	
@@ -84,13 +92,35 @@ public class VortonSpace {
 		for (Vorton v : vortons){
 			float s = FastMath.nextRandomFloat() * 1f;
 			v.position.set(FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s);
-			v.vorticity.set(FastMath.nextRandomFloat() * 0.01f, FastMath.nextRandomFloat() * 0.01f, FastMath.nextRandomFloat() * 0.01f);
+			v.vorticity.set(FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f);
 			//v.vorticity.set(0.01f, 0.01f, 0.01f);
 		}
 	}
 	
 	public void distributeVortons(Vector3f min, Vector3f max){
+		float particlesPerSide = (float) Math.cbrt(vortons.size());
+		int nParticles = (int) particlesPerSide + 1;
+		float xStep = (max.x - min.x) / particlesPerSide;
+		float yStep = (max.y - min.y) / particlesPerSide;
+		float zStep = (max.z - min.z) / particlesPerSide;
 		
+		int index = 0;
+		outer:
+		for (int i = 0; i < nParticles; i++){
+			float x = xStep * i + min.x;
+			for (int j = 0; j < nParticles; j++){
+				float y = yStep * j + min.y;
+				for (int k = 0; k < nParticles; k++){
+					float z = zStep * k + min.z;
+					if (index >= vortons.size()){
+						break outer;
+					}
+					vortons.get(index).position.set(x, y, z);
+					vortons.get(index).vorticity.set(0, 12000f, 12000f);
+					++index;
+				}
+			}
+		}
 	}
 	
 	/**
@@ -101,7 +131,7 @@ public class VortonSpace {
 		if (timeAccumulator > DT){ 
 			buildVortonTree();
 			
-//			stretchAndTilt();
+			stretchAndTilt();
 			diffuseVorticity();
 			advectVortons();
 			timeAccumulator -= DT;
@@ -120,7 +150,7 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				System.out.println("Tracers took (ms): " + (System.currentTimeMillis() - ms));
+				//System.out.println("Tracers took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -136,8 +166,9 @@ public class VortonSpace {
 		for (Vorton v : vortons){
 			vortonTree.getRoot().insert(v);
 		}
-		System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms));
 		vortonTree.getRoot().updateDerivedQuantities();
+		//System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms) + 
+				//" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
 	}
 	
 	protected void buildVelocityGrid(){
@@ -155,7 +186,7 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				System.out.println("Stretch and tilt took (ms): " + (System.currentTimeMillis() - ms));
+				//System.out.println("Stretch and tilt took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -172,7 +203,7 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				System.out.println("Advection took (ms): " + (System.currentTimeMillis() - ms));
+				//System.out.println("Advection took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -197,7 +228,7 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
+				//System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -216,14 +247,17 @@ public class VortonSpace {
 	
 	protected void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
 		temp2.set(position).subtractLocal(v.position);
-		float r = temp2.length();
-		if (r < VORTON_RADIUS){
-			r = VORTON_RADIUS_CUBE;
+		float dist2 = temp2.lengthSquared() + AVOID_SINGULARITY;
+		float oneOverDist = 1f / temp2.length();
+		float distLaw;
+		if (dist2 < VORTON_RADIUS_SQ){
+			distLaw = oneOverDist / VORTON_RADIUS_SQ;
 		}
 		else {
-			r = r * r * r;
+			 distLaw = oneOverDist / dist2;
 		}
-		temp1.set(v.vorticity).crossLocal(temp2).divideLocal(r);
+		
+		temp1.set(v.vorticity).multLocal(FOUR_THIRDS_PI * VORTON_RADIUS_CUBE).crossLocal(temp2).multLocal(distLaw);
 		accum.addLocal(temp1);
 	}
 	
@@ -237,9 +271,9 @@ public class VortonSpace {
 			vars.vec[i].set(vars.temp2);
 		}
 		
-		vars.vec[1].subtractLocal(vars.vec[0]).divideLocal(JACOBIAN_D); // d/dx
-		vars.vec[3].subtractLocal(vars.vec[2]).divideLocal(JACOBIAN_D); // d/dy
-		vars.vec[5].subtractLocal(vars.vec[4]).divideLocal(JACOBIAN_D); // d/dz
+		vars.vec[1].subtractLocal(vars.vec[0]).multLocal(JACOBIAN_D); // d/dx
+		vars.vec[3].subtractLocal(vars.vec[2]).multLocal(JACOBIAN_D); // d/dy
+		vars.vec[5].subtractLocal(vars.vec[4]).multLocal(JACOBIAN_D); // d/dz
 		
 		vars.mat.setColumn(0, vars.vec[1]);
 		vars.mat.setColumn(1, vars.vec[3]);
@@ -298,8 +332,10 @@ public class VortonSpace {
 				vortonTree.getRoot().getInfluentialVortons(vorton.position, localVortons);
 
 				getJacobian(localVortons, vorton.position, vars);
-				//vars.mat.multLocal(DT);
-				vars.mat.multLocal(vorton.vorticity);
+				vars.temp0.set(vorton.vorticity);
+				vars.mat.multLocal(vars.temp0);
+				vars.temp0.multLocal(DT);
+				vorton.vorticity.addLocal(vars.temp0);
 				int newval = outstandingWorkItems.decrementAndGet();
 				if (newval == 0){
 					synchronized (outstandingWorkItems) {
@@ -326,6 +362,8 @@ public class VortonSpace {
 				
 				localVortons.clear();
 				vortonTree.getRoot().getInfluentialVortons(vorton.position, localVortons);
+				localVortons.remove(vorton);
+				advectVorton(vorton, localVortons, vars);
 				
 				int newval = outstandingWorkItems.decrementAndGet();
 				if (newval == 0){

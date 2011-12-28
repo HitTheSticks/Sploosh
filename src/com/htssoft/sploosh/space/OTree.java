@@ -54,8 +54,8 @@ public class OTree {
 			cellMin.minLocal(vorton.position); //update bounding box
 			cellMax.maxLocal(vorton.position);
 			superVorton.vorticity.addLocal(vorton.vorticity);
-			vorton.position.mult(vorton.vorticity, tempVec);
-			superVorton.position.addLocal(tempVec); //this needs to be eventually divided by n
+			//vorton.position.mult(vorton.vorticity, tempVec);
+			superVorton.position.addLocal(vorton.position); //this needs to be eventually divided by n
 			vortonsPassedThroughHere++; //and here's our n.
 			
 			if (items == null && children == null){ //we're unused so far

@@ -33,6 +33,10 @@ public class FluidView extends Geometry {
 		this.setCullHint(CullHint.Never);
 	}
 	
+	public void setScale(Vector3f scale){
+		tracerMesh.setScale(scale);
+	}
+	
 	public void distributeTracers(Vector3f center, float radius){
 		this.getWorldTransform();
 		List<Vector3f> tracers = tracerMesh.getBuffer();
