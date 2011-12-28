@@ -19,8 +19,8 @@ public class FluidTracerMesh extends Mesh {
 	protected ArrayList<Vector3f> positions;
 	protected Vector3f minPosition = new Vector3f();
 	protected Vector3f maxPosition = new Vector3f();
-	protected Vector3f scale = new Vector3f();
-	protected Vector3f temp = new Vector3f(1f, 1f, 1f);
+	protected Vector3f scale = new Vector3f(1f, 1f, 1f);
+	protected Vector3f temp = new Vector3f();
 	
 	public FluidTracerMesh(int nParticles){
 		verts = nParticles;

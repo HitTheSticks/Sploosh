@@ -16,12 +16,14 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
 
-public class FluidView extends Geometry {
+public class FluidVortonView extends Geometry {
 	protected FluidTracerMesh tracerMesh;
 	protected VortonSpace fluid;
 	protected int nTracers;
 	
-	public FluidView(int nTracers, VortonSpace fluid){
+	protected boolean isDriver = false;
+	
+	public FluidVortonView(int nTracers, VortonSpace fluid){
 		this.fluid = fluid;
 		this.nTracers = nTracers;
 		this.setShadowMode(ShadowMode.Off);
@@ -33,33 +35,19 @@ public class FluidView extends Geometry {
 		this.setCullHint(CullHint.Never);
 	}
 	
+	public void setDriver(boolean isDriving){
+		isDriver = isDriving;
+	}
+	
 	public void setScale(Vector3f scale){
 		tracerMesh.setScale(scale);
 	}
-		
-	public void distributeTracers(Vector3f center, float radius){
-		this.getWorldTransform();
-		List<Vector3f> tracers = tracerMesh.getBuffer();
-		for (Vector3f t : tracers){
-			t.set(randomComponent(), randomComponent(), randomComponent());
-			t.normalizeLocal();
-			t.multLocal(radius * FastMath.nextRandomFloat());
-			t.addLocal(center);
-			this.getWorldTransform().transformVector(t, t);
-		}
-		tracerMesh.updateBuffers();
-	}
-	
-	protected float randomComponent(){
-		return FastMath.nextRandomFloat() * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1);
-	}
-	
+
 	public void updateFromControl(float tpf){
-		if (tpf > VortonSpace.DT * 2){
-			return;
+		if (isDriver){
+			fluid.stepSimulation(tpf);
 		}
-		fluid.advectTracers(tracerMesh.getBuffer(), tpf);
-		fluid.stepSimulation(tpf);
+		fluid.traceVortons(tracerMesh.getBuffer());
 		tracerMesh.updateBuffers();
 		this.setBoundRefresh();
 	}

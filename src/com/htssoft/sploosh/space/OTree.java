@@ -5,18 +5,15 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import com.htssoft.sploosh.SimpleVorton;
 import com.htssoft.sploosh.Vorton;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
 public class OTree {
-	protected int bucketLoad = 32;
-	/**
-	 * To be used only on insertion, which is single-threaded.
-	 * */
-	private Vector3f tempVec = new Vector3f();
+	protected int bucketLoad = 8;
 	protected OTreeNode root;
-	
+	Vector3f tempVec = new Vector3f();
 	public OTree(){
 		root = new OTreeNode();
 	}
@@ -31,7 +28,7 @@ public class OTree {
 		Vector3f splitPoint;
 		ArrayList<Vorton> items = null;
 		OTreeNode[] children = null;
-		Vorton superVorton = new Vorton();
+		Vorton superVorton = new SimpleVorton();
 		int vortonsPassedThroughHere = 0;
 		
 		public Vector3f getMin(){
@@ -51,18 +48,18 @@ public class OTree {
 		 * and potentially splitting this node.
 		 * */
 		public void insert(Vorton vorton){
-			cellMin.minLocal(vorton.position); //update bounding box
-			cellMax.maxLocal(vorton.position);
-			superVorton.vorticity.addLocal(vorton.vorticity);
-			//vorton.position.mult(vorton.vorticity, tempVec);
-			superVorton.position.addLocal(vorton.position); //this needs to be eventually divided by n
-			vortonsPassedThroughHere++; //and here's our n.
-			
+			cellMin.minLocal(vorton.getPosition()); //update bounding box
+			cellMax.maxLocal(vorton.getPosition());
+			superVorton.getVort().addLocal(vorton.getVort());
+			//vorton.getPosition().mult(vorton.getVort().length(), tempVec);
+			superVorton.getPosition().addLocal(vorton.getPosition()); //this needs to be eventually divided by n
+			//superVorton.getPosition().addLocal(tempVec);
+			vortonsPassedThroughHere++; //and here's our n.	
 			if (items == null && children == null){ //we're unused so far
 				items = new ArrayList<Vorton>(bucketLoad + 1);
 			}
 			else if (children != null){ //we've previously had data, but have now split.
-				chooseChild(vorton.position).insert(vorton);
+				chooseChild(vorton.getPosition()).insert(vorton);
 				return;
 			}
 			
@@ -78,7 +75,8 @@ public class OTree {
 		 * getting aggregate supervortons.
 		 * */
 		public void updateDerivedQuantities(){
-			superVorton.position.divideLocal(vortonsPassedThroughHere);
+			superVorton.getPosition().divideLocal(vortonsPassedThroughHere);
+			System.out.println(superVorton.getPosition());
 			if (children == null){
 				return;
 			}
@@ -99,7 +97,7 @@ public class OTree {
 			Iterator<Vorton> it = items.iterator();
 			while (it.hasNext()){
 				Vorton i = it.next();
-				int child = chooseChildIndex(i.position);
+				int child = chooseChildIndex(i.getPosition());
 				if (children[child] == null){
 					children[child] = new OTreeNode();
 				}
@@ -239,9 +237,9 @@ public class OTree {
 		ArrayList<Vorton> toInsert = new ArrayList<Vorton>();
 		
 		for (int i = 0; i < 6000; i++){
-			Vorton v = new Vorton();
-			v.position.set(FastMath.nextRandomFloat(), FastMath.nextRandomFloat(), FastMath.nextRandomFloat());
-			v.vorticity.set(FastMath.nextRandomFloat(), FastMath.nextRandomFloat(), FastMath.nextRandomFloat());
+			SimpleVorton v = new SimpleVorton();
+			v.getPosition().set(FastMath.nextRandomFloat(), FastMath.nextRandomFloat(), FastMath.nextRandomFloat());
+			v.getVort().set(FastMath.nextRandomFloat(), FastMath.nextRandomFloat(), FastMath.nextRandomFloat());
 			toInsert.add(v);
 		}
 		
