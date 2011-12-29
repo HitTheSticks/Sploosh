@@ -1,1 +1,12 @@
-This is a basic, work-in-progress vorticity particle simulation.
+This is a vorticity particle (vorton) simulation of unconstrained fluid dynamics for video games.
+
+It is based on the work of Dr. Michael J. Gourlay at Intel, as described in 
+<http://software.intel.com/en-us/articles/fluid-simulation-for-video-games-part-1/>. 
+
+In general, this is fast enough and precise enough to be used in realtime on commodity multicore computers.
+
+However, it is *not* a physically accurate simulation. There are many, many places where the
+dynamics are fudged in order to ease implementation or improve performance.
+
+This simulation should not be used for engineering, product design, or scientific analysis. It's for putting
+pretty stuff on the computer screen. 
