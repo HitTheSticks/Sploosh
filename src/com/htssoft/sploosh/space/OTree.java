@@ -76,7 +76,6 @@ public class OTree {
 		 * */
 		public void updateDerivedQuantities(){
 			superVorton.getPosition().divideLocal(vortonsPassedThroughHere);
-			System.out.println(superVorton.getPosition());
 			if (children == null){
 				return;
 			}

@@ -45,7 +45,7 @@ public class FluidView extends Geometry {
 			t.normalizeLocal();
 			t.multLocal(radius * FastMath.nextRandomFloat());
 			t.addLocal(center);
-			this.getWorldTransform().transformVector(t, t);
+			//this.getWorldTransform().transformVector(t, t);
 		}
 		tracerMesh.updateBuffers();
 	}
@@ -55,12 +55,9 @@ public class FluidView extends Geometry {
 	}
 	
 	public void updateFromControl(float tpf){
-		if (tpf > VortonSpace.DT * 2){
-			return;
-		}
 		fluid.advectTracers(tracerMesh.getBuffer(), tpf);
-		fluid.stepSimulation(tpf);
 		tracerMesh.updateBuffers();
+		fluid.stepSimulation(tpf);
 		this.setBoundRefresh();
 	}
 	
