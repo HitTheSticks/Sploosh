@@ -20,6 +20,7 @@ public class FluidView extends Geometry {
 	protected FluidTracerMesh tracerMesh;
 	protected VortonSpace fluid;
 	protected int nTracers;
+	protected boolean enableSim = true;
 	
 	public FluidView(int nTracers, VortonSpace fluid){
 		this.fluid = fluid;
@@ -31,6 +32,14 @@ public class FluidView extends Geometry {
 		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
 		this.addControl(new FluidControl());
 		this.setCullHint(CullHint.Never);
+	}
+	
+	public void enableSim(boolean enable){
+		this.enableSim = enable;
+	}
+	
+	public void toggleSim(){
+		this.enableSim = !this.enableSim;
 	}
 	
 	public void setScale(Vector3f scale){
@@ -54,7 +63,11 @@ public class FluidView extends Geometry {
 		return FastMath.nextRandomFloat() * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1);
 	}
 	
+	
 	public void updateFromControl(float tpf){
+		if (!enableSim){
+			return;
+		}
 		fluid.advectTracers(tracerMesh.getBuffer(), tpf);
 		tracerMesh.updateBuffers();
 		fluid.stepSimulation(tpf);

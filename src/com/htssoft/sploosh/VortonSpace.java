@@ -17,7 +17,7 @@ public class VortonSpace {
 	public static final float VORTON_RADIUS = 0.1f;
 	public static final float VORTON_RADIUS_SQ = VORTON_RADIUS * VORTON_RADIUS;
 	public static final float VORTON_RADIUS_CUBE = VORTON_RADIUS * VORTON_RADIUS * VORTON_RADIUS;
-	public static final float AVOID_SINGULARITY = FastMath.pow(Float.MIN_VALUE, 1f / 3f);
+	public static final float AVOID_SINGULARITY = 0.00001f;
 	public static final float ONE_OVER_4_PI = 1f / (4f * FastMath.PI);
 	public static final float FOUR_THIRDS_PI = (4f / 3f) * FastMath.PI;
 	public static final float JACOBIAN_D = 0.001f;
@@ -51,6 +51,7 @@ public class VortonSpace {
 	protected float currentTPF = 0f;
 	protected Thread updateThread;
 	protected Object updateThreadMonitor = new Object();
+	protected boolean debugPrintln = false;
 	
 	/**
 	 * Create a new vorton simulation with the given
@@ -157,7 +158,7 @@ public class VortonSpace {
 	
 	public void distributeVortons(Vector3f min, Vector3f max){
 		float particlesPerSide = (float) Math.cbrt(vortons.size());
-		int nParticles = (int) particlesPerSide + 1;
+		int nParticles = (int) particlesPerSide;
 		float xStep = (max.x - min.x) / particlesPerSide;
 		float yStep = (max.y - min.y) / particlesPerSide;
 		float zStep = (max.z - min.z) / particlesPerSide;
@@ -229,7 +230,6 @@ public class VortonSpace {
 				
 				temp.addLocal(v.getVort());
 				v.setVort(temp);
-				System.out.println(temp);
 			}
 			else {
 				v.setVort(Vector3f.ZERO);
@@ -238,7 +238,7 @@ public class VortonSpace {
 		}
 	}
 	
-	public void injectJetRing(float radius, float thickness, float strength, Vector3f direction, Vector3f center){
+	public void injectJetRing(float radius, float thickness, float height, float strength, Vector3f direction, Vector3f center){
 		float radiusOuter = radius + thickness;
 		Vector3f fromCenter = new Vector3f();
 		float tween;
@@ -266,9 +266,10 @@ public class VortonSpace {
 			distAlongDir = direction.dot(fromCenter);
 			
 			if (rhoL < radiusOuter && rhoL > radius){
-				float streamwiseProfile = FastMath.abs(distAlongDir) < radius ?
-						0.5f * (FastMath.cos(FastMath.PI * distAlongDir / radius) + 1f) 
-						: 0f;
+				float streamwiseProfile = FastMath.abs(distAlongDir) < height ?
+											0.5f * (FastMath.cos(FastMath.PI * distAlongDir / radius) + 1f) 
+											: 0f;
+				
 				float radialProfile = FastMath.sin(FastMath.PI * (rhoL - radius) / thickness);
 				float vortPhi = streamwiseProfile * radialProfile * FastMath.PI / thickness;
 				
@@ -305,7 +306,7 @@ public class VortonSpace {
 			swapBuffers();
 			buildVortonTree();
 			
-			stretchAndTilt();
+			//stretchAndTilt();
 			diffuseVorticity();
 			advectVortons();
 			timeAccumulator -= DT;
@@ -345,7 +346,8 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				//System.out.println("Tracers took (ms): " + (System.currentTimeMillis() - ms));
+				if (debugPrintln)
+					System.out.println("Tracers took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -355,15 +357,25 @@ public class VortonSpace {
 	/**
 	 * Build the OTree of vortons.
 	 * */
-	protected void buildVortonTree(){
-		vortonTree = new OTree();
+	public void buildVortonTree(){
+		Vector3f min = new Vector3f(Vector3f.POSITIVE_INFINITY);
+		Vector3f max = new Vector3f(Vector3f.NEGATIVE_INFINITY);
+		
+		for (Vorton v : vortons){
+			min.minLocal(v.getPosition());
+			max.maxLocal(v.getPosition());
+		}
+		vortonTree = new OTree(min, max);
+		vortonTree.splitTo(4);
 		long ms = System.currentTimeMillis();
 		for (Vorton v : vortons){
 			vortonTree.getRoot().insert(v);
 		}
 		vortonTree.getRoot().updateDerivedQuantities();
-		//System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms) + 
-				//" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
+		if (debugPrintln){
+		System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms) + 
+				" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
+		}
 	}
 	
 	protected void buildVelocityGrid(){
@@ -381,7 +393,8 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				//System.out.println("Stretch and tilt took (ms): " + (System.currentTimeMillis() - ms));
+				if (debugPrintln)
+					System.out.println("Stretch and tilt took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -398,7 +411,8 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				//System.out.println("Advection took (ms): " + (System.currentTimeMillis() - ms));
+				if (debugPrintln)
+					System.out.println("Advection took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -423,7 +437,8 @@ public class VortonSpace {
 				while (outstandingWorkItems.get() != 0){
 					outstandingWorkItems.wait();
 				}
-				//System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
+				if (debugPrintln)
+					System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
 			} catch (InterruptedException ex) {
 				ex.printStackTrace();
 			}
@@ -441,6 +456,12 @@ public class VortonSpace {
 	}
 	
 	protected void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
+		if (!Vector3f.isValidVector(v.getVort())){
+			return;
+		}
+		if (!Vector3f.isValidVector(v.getPosition())){
+			return;
+		}
 		temp2.set(position).subtractLocal(v.getPosition());
 		float dist2 = temp2.lengthSquared() + AVOID_SINGULARITY;
 		float oneOverDist = 1f / temp2.length();
@@ -487,11 +508,8 @@ public class VortonSpace {
 	
 	protected void advectTracer(Vector3f tracer, List<Vorton> influences, ThreadVars vars){
 		computeVelocityFromVortons(tracer, influences, vars.temp0, vars.temp1, vars.temp2);
-		float tpf = currentTPF;
-		while (tpf > DT){
-			tracer.addLocal(vars.temp0.multLocal(DT));
-			tpf -= DT;
-		}
+		float step = DT < currentTPF ? DT : currentTPF;
+		tracer.addLocal(vars.temp0.multLocal(step));
 	}
 	
 	public void traceVortons(List<Vector3f> tracers){
@@ -518,10 +536,14 @@ public class VortonSpace {
 			}
 			v.getVort(vars.temp2);
 			vars.temp2.addLocal(vars.temp1.multLocal(DT));
-			vars.temp2.multLocal(1f - (viscosity * DT * DT));
+			vars.temp2.multLocal(1f - (viscosity * DT));
 			
 			v.setVort(vars.temp2);
 		}
+	}
+	
+	public OTree getLastTreeForDebug(){
+		return vortonTree;
 	}
 
 	/**

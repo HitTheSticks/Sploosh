@@ -48,6 +48,10 @@ public class FluidTracerMesh extends Mesh {
 		this.scale.set(scale);
 	}
 	
+	public Vector3f getScale(){
+		return scale;
+	}
+	
 	public List<Vector3f> getBuffer(){
 		return positions;
 	}

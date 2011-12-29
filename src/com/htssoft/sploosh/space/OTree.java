@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Stack;
 
 import com.htssoft.sploosh.SimpleVorton;
 import com.htssoft.sploosh.Vorton;
@@ -11,11 +12,15 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
 public class OTree {
-	protected int bucketLoad = 8;
 	protected OTreeNode root;
 	Vector3f tempVec = new Vector3f();
-	public OTree(){
-		root = new OTreeNode();
+	
+	public OTree(Vector3f min, Vector3f max){
+		root = new OTreeNode(min, max, 0);
+	}
+	
+	public void splitTo(int level){
+		root.split(0, level);
 	}
 	
 	public OTreeNode getRoot(){
@@ -23,13 +28,20 @@ public class OTree {
 	}
 	
 	public class OTreeNode {
-		Vector3f cellMin = new Vector3f(Vector3f.POSITIVE_INFINITY);
-		Vector3f cellMax = new Vector3f(Vector3f.NEGATIVE_INFINITY);
+		public Vector3f cellMin = new Vector3f();
+		public Vector3f cellMax = new Vector3f();
+		public final int level;
 		Vector3f splitPoint;
 		ArrayList<Vorton> items = null;
 		OTreeNode[] children = null;
 		Vorton superVorton = new SimpleVorton();
 		int vortonsPassedThroughHere = 0;
+		
+		OTreeNode(Vector3f min, Vector3f max, int level){
+			cellMin.set(min);
+			cellMax.set(max);
+			this.level = level;
+		}
 		
 		public Vector3f getMin(){
 			return cellMin;
@@ -44,30 +56,21 @@ public class OTree {
 		}
 		
 		/**
-		 * Insert another point, expanding this bounding box,
-		 * and potentially splitting this node.
+		 * Insert another point
 		 * */
 		public void insert(Vorton vorton){
-			cellMin.minLocal(vorton.getPosition()); //update bounding box
-			cellMax.maxLocal(vorton.getPosition());
 			superVorton.getVort().addLocal(vorton.getVort());
 			//vorton.getPosition().mult(vorton.getVort().length(), tempVec);
 			superVorton.getPosition().addLocal(vorton.getPosition()); //this needs to be eventually divided by n
 			//superVorton.getPosition().addLocal(tempVec);
 			vortonsPassedThroughHere++; //and here's our n.	
-			if (items == null && children == null){ //we're unused so far
-				items = new ArrayList<Vorton>(bucketLoad + 1);
-			}
-			else if (children != null){ //we've previously had data, but have now split.
+			
+			if (children != null){
 				chooseChild(vorton.getPosition()).insert(vorton);
 				return;
 			}
 			
 			items.add(vorton);
-			
-			if (items.size() > bucketLoad){
-				split();
-			}
 		}
 		
 		/**
@@ -75,7 +78,10 @@ public class OTree {
 		 * getting aggregate supervortons.
 		 * */
 		public void updateDerivedQuantities(){
-			superVorton.getPosition().divideLocal(vortonsPassedThroughHere);
+			if (vortonsPassedThroughHere > 0){
+				superVorton.getPosition().divideLocal(vortonsPassedThroughHere);
+			}
+			
 			if (children == null){
 				return;
 			}
@@ -88,20 +94,50 @@ public class OTree {
 			}
 		}
 		
-		protected void split(){
+		protected void split(int curLevel, int targetLevel){
+			if (curLevel == targetLevel){
+				items = new ArrayList<Vorton>();
+				return;
+			}
+			
 			splitPoint = new Vector3f();
 			splitPoint.interpolate(cellMin, cellMax, 0.5f);	
 			children = new OTreeNode[8];
 			
-			Iterator<Vorton> it = items.iterator();
-			while (it.hasNext()){
-				Vorton i = it.next();
-				int child = chooseChildIndex(i.getPosition());
-				if (children[child] == null){
-					children[child] = new OTreeNode();
+			Vector3f tempMin = new Vector3f(), tempMax = new Vector3f();
+			
+			for (int i = 0; i < 8; i++){
+				int child = i;
+				if ((child & 0x01) == 0){ //low x
+					tempMin.x = cellMin.x;
+					tempMax.x = splitPoint.x;
 				}
-				children[child].insert(i);
-				it.remove();
+				else {
+					tempMin.x = splitPoint.x;
+					tempMax.x = cellMax.x;
+				}
+				
+				if ((child & 0x02) == 0){ //low y
+					tempMin.y = cellMin.y;
+					tempMax.y = splitPoint.y;
+				}
+				else {
+					tempMin.y = splitPoint.y;
+					tempMax.y = cellMax.y;
+				}
+				
+				if ((child & 0x04) == 0){ //low z
+					tempMin.z = cellMin.z;
+					tempMax.z = splitPoint.z;
+				}
+				else {
+					tempMin.z = splitPoint.z;
+					tempMax.z = cellMax.z;
+				}
+				
+				OTreeNode newNode = new OTreeNode(tempMin, tempMax, curLevel + 1); 
+				children[child] = newNode;
+				newNode.split(curLevel + 1, targetLevel);
 			}
 			items = null;
 		}
@@ -117,13 +153,13 @@ public class OTree {
 		
 		protected int chooseChildIndex(Vector3f pos){
 			int index = 0;
-			if (pos.x < splitPoint.x){
+			if (pos.x > splitPoint.x){
 				index |= 0x01;
 			}
-			if (pos.y < splitPoint.y){
+			if (pos.y > splitPoint.y){
 				index |= 0x02;
 			}
-			if (pos.z < splitPoint.z){
+			if (pos.z > splitPoint.z){
 				index |= 0x04;
 			}
 			
@@ -132,9 +168,6 @@ public class OTree {
 		
 		protected OTreeNode chooseChild(Vector3f pos){
 			int index = chooseChildIndex(pos);
-			if (children[index] == null){
-				children[index] = new OTreeNode();
-			}
 			return children[index];
 		}
 		
@@ -160,7 +193,9 @@ public class OTree {
 		 * */
 		public void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
 			if (!contains(pos)){
-				storage.add(superVorton);
+				if (!superVorton.getVort().equals(Vector3f.ZERO)){
+					storage.add(superVorton);
+				}
 				return;
 			}
 			
@@ -175,7 +210,6 @@ public class OTree {
 				}
 				
 				child.getInfluentialVortons(pos, storage);
-				
 			}
 		}
 		
@@ -222,6 +256,26 @@ public class OTree {
 				}
 			}
 		}
+		
+		public void preOrderTraverse(List<OTreeNode> out){
+			out.add(this);
+			if (children == null){
+				return;
+			}
+			
+			for (OTreeNode child : children){
+				if (child == null){
+					continue;
+				}
+				child.preOrderTraverse(out);
+			}
+		}
+	}
+	
+	public List<OTreeNode> preOrderTraversal(){
+		ArrayList<OTreeNode> retval = new ArrayList<OTreeNode>();
+		root.preOrderTraverse(retval);
+		return retval;
 	}
 	
 	private static void printTab(int tabDepth){
@@ -231,8 +285,8 @@ public class OTree {
 	}
 	
 	private static void doTestRun(){
-		OTree jt = new OTree();
-		
+		OTree jt = new OTree(new Vector3f(-1, -1, -1), new Vector3f(1, 1, 1));
+		jt.splitTo(4);
 		ArrayList<Vorton> toInsert = new ArrayList<Vorton>();
 		
 		for (int i = 0; i < 6000; i++){

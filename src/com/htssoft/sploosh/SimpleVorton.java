@@ -35,5 +35,4 @@ public class SimpleVorton extends Vorton {
 	public void setVort(Vector3f value) {
 		vort.set(value);
 	}
-
 }

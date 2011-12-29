@@ -1,12 +1,11 @@
 package com.htssoft.sploosh.presentation;
 
 import java.io.IOException;
-import java.util.List;
 
 import com.htssoft.sploosh.VortonSpace;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
-import com.jme3.math.FastMath;
+import com.jme3.material.Material;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -22,6 +21,8 @@ public class FluidVortonView extends Geometry {
 	protected int nTracers;
 	
 	protected boolean isDriver = false;
+	protected OTreeDebug treeDebug;
+	protected boolean enableTreeDebug;
 	
 	public FluidVortonView(int nTracers, VortonSpace fluid){
 		this.fluid = fluid;
@@ -35,6 +36,21 @@ public class FluidVortonView extends Geometry {
 		this.setCullHint(CullHint.Never);
 	}
 	
+	public void debugTree(Material mat){
+		treeDebug = new OTreeDebug(mat);
+		if (this.getParent() != null){
+			this.getParent().attachChild(treeDebug.getNode());	
+		}
+	}
+	
+	public void toggleTree(){
+		enableTreeDebug = !enableTreeDebug;
+	}
+	
+	public void setShowTree(boolean tree){
+		enableTreeDebug = tree;
+	}
+	
 	public void setDriver(boolean isDriving){
 		isDriver = isDriving;
 	}
@@ -46,6 +62,12 @@ public class FluidVortonView extends Geometry {
 	public void updateFromControl(float tpf){
 		if (isDriver){
 			fluid.stepSimulation(tpf);
+		}
+		if (treeDebug != null && enableTreeDebug){
+			if (fluid.getLastTreeForDebug() == null){
+				fluid.buildVortonTree();
+			}
+			treeDebug.updateTree(fluid.getLastTreeForDebug(), tracerMesh.getScale());
 		}
 		fluid.traceVortons(tracerMesh.getBuffer());
 		tracerMesh.updateBuffers();
