@@ -2,31 +2,47 @@ package com.htssoft.sploosh.space;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Stack;
 
 import com.htssoft.sploosh.SimpleVorton;
 import com.htssoft.sploosh.Vorton;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
+/**
+ * This is a basic aggregating octree.
+ * 
+ * It is responsible for providing the "poles" in the multipole approximation of vorton
+ * influence.
+ * */
 public class OTree {
 	protected OTreeNode root;
 	Vector3f tempVec = new Vector3f();
 	
+	/**
+	 * Create a new octree with the given bounding box.
+	 * */
 	public OTree(Vector3f min, Vector3f max){
 		root = new OTreeNode(min, max, 0);
 	}
 	
+	/**
+	 * Subdivide the root node to the given level of recursion.
+	 * */
 	public void splitTo(int level){
 		root.split(0, level);
 	}
 	
+	/**
+	 * Get the root node.
+	 * */
 	public OTreeNode getRoot(){
 		return root;
 	}
 	
+	/**
+	 * A node in the octree.
+	 * */
 	public class OTreeNode {
 		public Vector3f cellMin = new Vector3f();
 		public Vector3f cellMax = new Vector3f();
@@ -94,7 +110,14 @@ public class OTree {
 			}
 		}
 		
+		/**
+		 * Split this node.
+		 * */
 		protected void split(int curLevel, int targetLevel){
+			if (splitPoint != null){
+				throw new IllegalStateException("This cell has already been split. You cannot resplit it.");
+			}
+			
 			if (curLevel == targetLevel){
 				items = new ArrayList<Vorton>();
 				return;
@@ -171,9 +194,15 @@ public class OTree {
 			return children[index];
 		}
 		
+		/**
+		 * Gets all leaves in the tree that have at least
+		 * one vorton in them.
+		 * */
 		public void getLeaves(ArrayList<OTreeNode> store){
 			if (items != null){
-				store.add(this);
+				if (items.size() > 0){
+					store.add(this);
+				}
 				return;
 			}
 			
@@ -186,7 +215,7 @@ public class OTree {
 		}
 		
 		/**
-		 * Get the list of vortons (super and otherwise) that contribute
+		 * Get the list of vortons (super and elementary) that contribute
 		 * to the given position's velocity.
 		 * 
 		 * This is essentially the multipole method.
@@ -234,7 +263,9 @@ public class OTree {
 			}
 		}
 		
-		
+		/**
+		 * Print an pre-order traversal of the tree.
+		 * */
 		public void printTraversal(int depth){
 			System.out.print("\n");
 			printTab(depth);
@@ -257,6 +288,9 @@ public class OTree {
 			}
 		}
 		
+		/**
+		 * Get all nodes in the tree by pre-order.
+		 * */
 		public void preOrderTraverse(List<OTreeNode> out){
 			out.add(this);
 			if (children == null){
@@ -272,6 +306,9 @@ public class OTree {
 		}
 	}
 	
+	/**
+	 * Get the pre-order traversal of this tree.
+	 * */
 	public List<OTreeNode> preOrderTraversal(){
 		ArrayList<OTreeNode> retval = new ArrayList<OTreeNode>();
 		root.preOrderTraverse(retval);
@@ -284,6 +321,9 @@ public class OTree {
 		}
 	}
 	
+	/**
+	 * This is here for performance testing.
+	 * */
 	private static void doTestRun(){
 		OTree jt = new OTree(new Vector3f(-1, -1, -1), new Vector3f(1, 1, 1));
 		jt.splitTo(4);

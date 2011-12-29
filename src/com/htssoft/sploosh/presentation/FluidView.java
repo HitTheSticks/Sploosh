@@ -16,6 +16,11 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
 
+/**
+ * This is a Geometry designed to show a view of a VortonSpace fluid simulation.
+ * 
+ * By default, it will also manage stepping the simulation forward.
+ * */
 public class FluidView extends Geometry {
 	protected FluidTracerMesh tracerMesh;
 	protected VortonSpace fluid;

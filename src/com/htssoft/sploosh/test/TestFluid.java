@@ -28,13 +28,14 @@ public class TestFluid extends SimpleApplication {
 		//mouseInput.setCursorVisible(true);
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
-		fluid = new VortonSpace(1000, 0.2f, 5);
+				
+		fluid = new VortonSpace(1000, 0.2f, 4);
 		fluid.distributeVortons(new Vector3f(-0.75f, -0.5f, -0.75f), new Vector3f(0.75f, 4f, 0.75f));
-		fluid.injectJetRing(0.1f, 1f, 1f, 10f, Vector3f.UNIT_Y, Vector3f.ZERO);
+		fluid.injectJetRing(0.1f, 1f, 1f, 15f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		//fluid.injectVortexRing(0.1f, 1f, 10f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		fluid.initializeThreads(4);
 		
-		fv = new FluidView(2000, fluid);
+		fv = new FluidView(4000, fluid);
 		fv.setScale(new Vector3f(0.5f, 0.5f, 0.5f));
 		fv.distributeTracers(new Vector3f(0f, 0.5f, 0f), 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
@@ -42,7 +43,7 @@ public class TestFluid extends SimpleApplication {
 		fv.setMaterial(mat);
 		fv.enableSim(true);
 		
-		fvv = new FluidVortonView(1000, fluid);
+		fvv = new FluidVortonView(fluid);
 		fvv.setScale(new Vector3f(0.5f, 0.5f, 0.5f));
 		mat = mat.clone();
 		mat.setColor("Color", ColorRGBA.Cyan);

@@ -5,6 +5,15 @@ import com.jme3.bounding.BoundingBox;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
+/**
+ * This is not used currently. Nor does it work.
+ * 
+ * It may be used in the future to accelerate velocity calculations.
+ * 
+ * Or, it may not, since then we'd be stuffed into a predefined volume.
+ * 
+ * Dunno.
+ * */
 public class UniformGrid<T> {
 	protected int[] nCells = new int[3];
 	protected BoundingBox bounds = new BoundingBox();

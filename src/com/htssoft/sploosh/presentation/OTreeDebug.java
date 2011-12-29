@@ -11,6 +11,11 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 
+/**
+ * This builds a visual representation of the octree from a
+ * {@link VortonSpace}. But, honestly, it's awful. Don't use it
+ * unless you absolutely have to.
+ * */
 public class OTreeDebug {
 	protected final static ColorRGBA[] levelColors = {
 		new ColorRGBA(1, 1, 1, 1),

@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.htssoft.sploosh.space.OTree;
 import com.htssoft.sploosh.space.OTree.OTreeNode;
-import com.htssoft.sploosh.space.UniformGrid;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
@@ -42,7 +41,6 @@ public class VortonSpace {
 	protected LinkedBlockingQueue<DiffuseWorkItem> diffuseWork = new LinkedBlockingQueue<DiffuseWorkItem>();
 	protected LinkedBlockingQueue<Vorton> advectWork = new LinkedBlockingQueue<Vorton>();
 	protected LinkedBlockingQueue<Vector3f> tracerWork = new LinkedBlockingQueue<Vector3f>();
-	protected UniformGrid<Vector3f> velocityGrid;
 	protected int gridResolution;
 	protected AtomicInteger outstandingWorkItems = new AtomicInteger();
 	protected float timeAccumulator = 0f;
@@ -56,6 +54,13 @@ public class VortonSpace {
 	/**
 	 * Create a new vorton simulation with the given
 	 * number of vortons.
+	 * 
+	 * @param nVortons the number of vortons to simulate. For best (symmetrical) results, this
+	 * number should be a perfect cube.
+	 * 
+	 * @param viscosity this is a vague approximation of kinematic viscosity. Water is 1f.
+	 * 
+	 * @param gridResolution how many levels of recursion to descend when building the octree. 4-6 are good numbers.
 	 * */
 	public VortonSpace(int nVortons, float viscosity, int gridResolution){
 		this.viscosity = viscosity;
@@ -83,6 +88,16 @@ public class VortonSpace {
 		backVort.set(backVorticities);
 	}
 	
+	/**
+	 * Get the number of vortons in the fluid simulation.
+	 * */
+	public int getNVortons(){
+		return vortons.size();
+	}
+	
+	/**
+	 * Swap back and front position/vorticity buffers.
+	 * */
 	protected void swapBuffers(){
 		Vector3f[] t = frontPos.get();
 		frontPos.set(backPos.get());
@@ -93,26 +108,14 @@ public class VortonSpace {
 		backVort.set(t);
 	}
 	
+	/**
+	 * Initialize worker threads. This *must* be done before
+	 * the simulation is started.
+	 * 
+	 * @param workThreads how many of each thread type should we use? In general, set
+	 * this to the number of cores you have.
+	 * */
 	public void initializeThreads(int workThreads){
-//		updateThread = new Thread(new Runnable() {
-//			@Override
-//			public void run() {
-//				while (!Thread.interrupted()){
-//					try {
-//						synchronized (updateThreadMonitor) {
-//							if (timeAccumulator < DT){
-//								updateThreadMonitor.wait();
-//							}
-//						}
-//					} catch (InterruptedException ex) {
-//						break;
-//					}
-//					simulateStep();
-//				}
-//			}
-//		}, "FluidUpdate");
-//		updateThread.setDaemon(true);
-//		updateThread.start();
 		for (int i = 0; i < workThreads; i++){
 			StretchThread st = new StretchThread();
 			Thread t = new Thread(st, "Stretch/Tilt");
@@ -140,12 +143,23 @@ public class VortonSpace {
 		}
 	}
 	
-	public void finalize(){
+	/**
+	 * Interrupt all worker threads. After this is called,
+	 * another call to {@link initializeThreads} is required
+	 * for the simulation to run.
+	 * */
+	public void stopThreads(){
 		for (Thread t : threads){
 			t.interrupt();
 		}
+		threads.clear();
 	}
 	
+	/**
+	 * Randomize all vortons' positions and vorticities.
+	 * 
+	 * Honestly, this is useless unless you just want chaos.
+	 * */
 	public void randomizeVortons(){
 		for (Vorton v : vortons){
 			float s = FastMath.nextRandomFloat() * 1f;
@@ -156,6 +170,11 @@ public class VortonSpace {
 		swapBuffers(); //swap new values to back buffer for first run
 	}
 	
+	/**
+	 * Distribute vortons evenly over a grid.
+	 * @param min the lower bound of the grid's bounding box.
+	 * @param max the upper bound of the grid's bounding box.
+	 * */
 	public void distributeVortons(Vector3f min, Vector3f max){
 		float particlesPerSide = (float) Math.cbrt(vortons.size());
 		int nParticles = (int) particlesPerSide;
@@ -186,6 +205,16 @@ public class VortonSpace {
 		swapBuffers(); //swap new values to back buffer for first run
 	}
 	
+	/**
+	 * Inject a not-very-good vortex ring.
+	 * 
+	 * @param radius the interior radius of the ring.
+	 * @param thickness the width of the ring
+	 * @param strength by default, this method generates vorticities from (0,1). These vorticities are multiplied by strength. Think of
+	 * it as an amplitude parameter.
+	 * @param direction the direction the vortex ring should travel.
+	 * @param center the center of the vortex ring.
+	 * */
 	public void injectVortexRing(float radius, float thickness, float strength, Vector3f direction, Vector3f center){
 		Vector3f fromCenter = new Vector3f();
 		float tween;
@@ -238,6 +267,17 @@ public class VortonSpace {
 		}
 	}
 	
+	/**
+	 * Inject a pretty good vortex ring.
+	 * 
+	 * @param radius the interior radius of the ring.
+	 * @param thickness the width of the ring
+	 * @param height the height of the vortex ring.
+	 * @param strength by default, this method generates vorticities from (0,1). These vorticities are multiplied by strength. Think of
+	 * it as an amplitude parameter.
+	 * @param direction the direction the vortex ring should travel.
+	 * @param center the center of the vortex ring.
+	 * */
 	public void injectJetRing(float radius, float thickness, float height, float strength, Vector3f direction, Vector3f center){
 		float radiusOuter = radius + thickness;
 		Vector3f fromCenter = new Vector3f();
@@ -299,6 +339,7 @@ public class VortonSpace {
 	
 	/**
 	 * Step the simulation forward by dt.
+	 * @param dt how much time to add to the simulation.
 	 * */
 	public void stepSimulation(float dt){
 		timeAccumulator += dt;
@@ -321,18 +362,12 @@ public class VortonSpace {
 		timeAccumulator -= time;
 	}
 	
-	protected void simulateStep(){
-		while (timeAccumulator >= DT){
-			swapBuffers();
-			buildVortonTree();
-
-			stretchAndTilt();
-			diffuseVorticity();
-			advectVortons();
-			subtractSimTime(DT);
-		}
-	}
-	
+	/**
+	 * Update the positions of the given list of tracer positions.
+	 * @param tracerPositions A list of tracer positions to sample. These Vector3fs themselves are updated
+	 * with the new positions.
+	 * @param tpf how much time to simulate for particle advection. In reality, particles are advanced by min(tpf, DT).
+	 * */
 	public void advectTracers(List<Vector3f> tracerPositions, float tpf){
 		if (vortonTree == null){
 			buildVortonTree();
@@ -356,6 +391,8 @@ public class VortonSpace {
 
 	/**
 	 * Build the OTree of vortons.
+	 * 
+	 * This is public because you may want the tree for debugging purposes.
 	 * */
 	public void buildVortonTree(){
 		Vector3f min = new Vector3f(Vector3f.POSITIVE_INFINITY);
@@ -366,7 +403,7 @@ public class VortonSpace {
 			max.maxLocal(v.getPosition());
 		}
 		vortonTree = new OTree(min, max);
-		vortonTree.splitTo(4);
+		vortonTree.splitTo(gridResolution);
 		long ms = System.currentTimeMillis();
 		for (Vorton v : vortons){
 			vortonTree.getRoot().insert(v);
@@ -377,13 +414,7 @@ public class VortonSpace {
 				" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
 		}
 	}
-	
-	protected void buildVelocityGrid(){
-		velocityGrid = new UniformGrid<Vector3f>(vortonTree.getRoot().getMin(), vortonTree.getRoot().getMax(), 
-				gridResolution, 
-				Vector3f.ZERO);
-	}
-	
+
 	protected void stretchAndTilt(){
 		outstandingWorkItems.set(vortons.size());
 		stretchWork.addAll(vortons);
@@ -477,6 +508,9 @@ public class VortonSpace {
 		accum.addLocal(temp1);
 	}
 	
+	/**
+	 * Honestly, this is super slow and kinda broken.
+	 * */
 	protected void getJacobian(List<Vorton> influences, Vector3f position, ThreadVars vars){
 		for (int i = 0; i < jacobianOffsets.length; i++){
 			position.add(jacobianOffsets[i], vars.vec[i]);
@@ -512,6 +546,11 @@ public class VortonSpace {
 		tracer.addLocal(vars.temp0.multLocal(step));
 	}
 	
+	/**
+	 * Updates the list of vectors with the positions of all vortons in the system.
+	 * This is primarily for debugging purposes, although the motion of the vortons
+	 * themselves is perhaps attractive enough for use.
+	 * */
 	public void traceVortons(List<Vector3f> tracers){
 		Iterator<Vector3f> tIt = tracers.iterator();
 		Iterator<Vorton> vIt = vortons.iterator();
@@ -542,6 +581,11 @@ public class VortonSpace {
 		}
 	}
 	
+	/**
+	 * Get the most recent vorton octree built.
+	 * 
+	 * @return the most recent vorton octree built, or null if no tree has yet been built.
+	 * */
 	public OTree getLastTreeForDebug(){
 		return vortonTree;
 	}
@@ -553,6 +597,9 @@ public class VortonSpace {
 		public ArrayList<Vorton> vortons = new ArrayList<Vorton>();
 	}
 	
+	/**
+	 * Thread responsible for stretching/tilting.
+	 * */
 	protected class StretchThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
 		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
@@ -589,6 +636,9 @@ public class VortonSpace {
 		}
 	}
 	
+	/**
+	 * Thread responsible for vorton advection.
+	 * */
 	protected class AdvectThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
 		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
@@ -618,6 +668,9 @@ public class VortonSpace {
 		}
 	}
 
+	/**
+	 * Thread responsible for vorticity diffusion.
+	 * */
 	protected class DiffuseThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
 
@@ -644,6 +697,9 @@ public class VortonSpace {
 		}
 	}
 	
+	/**
+	 * Thread responsible for update tracer locations.
+	 * */
 	protected class TracerThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
 		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
@@ -672,6 +728,9 @@ public class VortonSpace {
 		}
 	}
 	
+	/**
+	 * A vorton that links back to VortonSpace front/back buffers.
+	 * */
 	public class BufferedVorton extends Vorton {
 		protected final int index;
 		

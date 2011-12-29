@@ -15,6 +15,12 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.Control;
 
+/**
+ * This class is highly similar to {@link FluidView}, but is designed to show
+ * the current position of simulation vortons instead of pretty tracers.
+ * 
+ * It is largely used for debugging the simulation.
+ * */
 public class FluidVortonView extends Geometry {
 	protected FluidTracerMesh tracerMesh;
 	protected VortonSpace fluid;
@@ -24,9 +30,9 @@ public class FluidVortonView extends Geometry {
 	protected OTreeDebug treeDebug;
 	protected boolean enableTreeDebug;
 	
-	public FluidVortonView(int nTracers, VortonSpace fluid){
+	public FluidVortonView(VortonSpace fluid){
 		this.fluid = fluid;
-		this.nTracers = nTracers;
+		this.nTracers = fluid.getNVortons();
 		this.setShadowMode(ShadowMode.Off);
 		this.setQueueBucket(Bucket.Transparent);
 		//this.setIgnoreTransform(true);

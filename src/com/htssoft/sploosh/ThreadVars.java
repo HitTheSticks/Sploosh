@@ -3,6 +3,9 @@ package com.htssoft.sploosh;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Vector3f;
 
+/**
+ * Variables used by threads in the VortonSpace.
+ * */
 public class ThreadVars {
 	public Vector3f temp0 = new Vector3f();
 	public Vector3f temp1 = new Vector3f();
