@@ -29,6 +29,8 @@ public class VortonSpace {
 		new Vector3f(0, 0, -JACOBIAN_D),
 		new Vector3f(0, 0, JACOBIAN_D)
 	};
+	
+	
 	protected ArrayList<Vorton> vortons;
 	
 	protected AtomicReference<Vector3f[]> frontPos = new AtomicReference<Vector3f[]>();
@@ -47,8 +49,6 @@ public class VortonSpace {
 	protected ArrayList<Thread> threads = new ArrayList<Thread>();
 	protected float viscosity = 0.5f;
 	protected float currentTPF = 0f;
-	protected Thread updateThread;
-	protected Object updateThreadMonitor = new Object();
 	protected boolean debugPrintln = false;
 	
 	/**
@@ -342,6 +342,10 @@ public class VortonSpace {
 	 * @param dt how much time to add to the simulation.
 	 * */
 	public void stepSimulation(float dt){
+		if (threads.size() == 0){
+			throw new IllegalStateException("Threads must be initialized with initializeThreads before calling stepSimulation.");
+		}
+		
 		timeAccumulator += dt;
 		if (timeAccumulator > DT){
 			swapBuffers();
