@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.htssoft.sploosh.space.OTree;
 import com.htssoft.sploosh.space.OTree.OTreeNode;
 import com.jme3.math.FastMath;
+import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 
 public class VortonSpace {
@@ -50,6 +51,7 @@ public class VortonSpace {
 	protected float viscosity = 0.5f;
 	protected float currentTPF = 0f;
 	protected boolean debugPrintln = false;
+	protected Transform inputTransform = Transform.IDENTITY.clone();
 	
 	/**
 	 * Create a new vorton simulation with the given
@@ -86,6 +88,14 @@ public class VortonSpace {
 		backPos.set(backPositions);
 		frontVort.set(vorticities);
 		backVort.set(backVorticities);
+	}
+	
+	/**
+	 * Set the input transform. This will be used to transform
+	 * all vector quantity inputs.
+	 * */
+	public void setInputTransform(Transform xform){
+		this.inputTransform.set(xform);
 	}
 	
 	/**
@@ -156,15 +166,29 @@ public class VortonSpace {
 	}
 	
 	/**
+	 * This isn't going to work, since the threads have references back here, keeping
+	 * this live.
+	 * 
+	 * But, whatever.
+	 * */
+	public void finalize(){
+		stopThreads();
+	}
+	
+	/**
 	 * Randomize all vortons' positions and vorticities.
 	 * 
 	 * Honestly, this is useless unless you just want chaos.
 	 * */
 	public void randomizeVortons(){
-		for (Vorton v : vortons){
+		Vector3f tPos = new Vector3f();
+		Vector3f tVort = new Vector3f();
+		for (Vorton vI : vortons){
+			BufferedVorton v = (BufferedVorton) vI;
 			float s = FastMath.nextRandomFloat() * 1f;
-			v.getPosition().set(FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s);
-			v.getVort().set(FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f);
+			tPos.set(FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s);
+			tVort.set(FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f);
+			v.initializeAll(tPos, tVort);
 			//v.vorticity.set(0.01f, 0.01f, 0.01f);
 		}
 		swapBuffers(); //swap new values to back buffer for first run
@@ -172,10 +196,12 @@ public class VortonSpace {
 	
 	/**
 	 * Distribute vortons evenly over a grid.
+	 * 
 	 * @param min the lower bound of the grid's bounding box.
 	 * @param max the upper bound of the grid's bounding box.
 	 * */
 	public void distributeVortons(Vector3f min, Vector3f max){
+
 		float particlesPerSide = (float) Math.cbrt(vortons.size());
 		int nParticles = (int) particlesPerSide;
 		float xStep = (max.x - min.x) / particlesPerSide;
@@ -197,6 +223,7 @@ public class VortonSpace {
 					}
 					BufferedVorton bv = (BufferedVorton) vortons.get(index);
 					temp.set(x, y, z);
+					inputTransform.transformVector(temp, temp);
 					bv.initializeAll(temp, Vector3f.ZERO);
 					++index;
 				}
@@ -212,10 +239,17 @@ public class VortonSpace {
 	 * @param thickness the width of the ring
 	 * @param strength by default, this method generates vorticities from (0,1). These vorticities are multiplied by strength. Think of
 	 * it as an amplitude parameter.
-	 * @param direction the direction the vortex ring should travel.
-	 * @param center the center of the vortex ring.
+	 * @param directionIn the direction the vortex ring should travel. Transformed by inputTransform.
+	 * @param centerIn the center of the vortex ring. Transformed by inputTransform.
 	 * */
-	public void injectVortexRing(float radius, float thickness, float strength, Vector3f direction, Vector3f center){
+	public void injectVortexRing(float radius, float thickness, float strength, Vector3f directionIn, Vector3f centerIn){
+		Vector3f direction = new Vector3f(directionIn);
+		Vector3f center = new Vector3f(centerIn);
+		inputTransform.getRotation().mult(direction, direction);
+		inputTransform.transformVector(center, center);
+		
+		direction.normalizeLocal();
+		
 		Vector3f fromCenter = new Vector3f();
 		float tween;
 		Vector3f ptOnLine = new Vector3f();
@@ -275,10 +309,21 @@ public class VortonSpace {
 	 * @param height the height of the vortex ring.
 	 * @param strength by default, this method generates vorticities from (0,1). These vorticities are multiplied by strength. Think of
 	 * it as an amplitude parameter.
-	 * @param direction the direction the vortex ring should travel.
-	 * @param center the center of the vortex ring.
+	 * @param directionIn the direction the vortex ring should travel. Transformed by inputTransform.
+	 * @param centerIn the center of the vortex ring. Transformed by inputTransform.
 	 * */
-	public void injectJetRing(float radius, float thickness, float height, float strength, Vector3f direction, Vector3f center){
+	public void injectJetRing(float radius, float thickness, float height, float strength, Vector3f directionIn, Vector3f centerIn){
+		Vector3f direction = new Vector3f(directionIn);
+		Vector3f center = new Vector3f(centerIn);
+		
+		inputTransform.getRotation().mult(direction, direction);
+		inputTransform.transformVector(center, center);
+		
+		direction.normalizeLocal();
+		
+		System.out.println("Direction: " + direction);
+		System.out.println("Center: " + center);
+		
 		float radiusOuter = radius + thickness;
 		Vector3f fromCenter = new Vector3f();
 		float tween;
@@ -319,23 +364,11 @@ public class VortonSpace {
 				direction.cross(rhoHat, phiHat);
 				phiHat.multLocal(vortPhi * strength);
 				
-				System.out.println(phiHat);
-				
 				v.setVort(phiHat);
 			}
 			v.setPosition(v.getPosition()); //copy to front buffer
 		}
 	}
-	
-	
-//	public void stepSimulation(float dt){
-//		addSimTime(dt);
-//		if (timeAccumulator >= DT){
-//			synchronized (updateThreadMonitor) {
-//				updateThreadMonitor.notifyAll();
-//			}
-//		}
-//	}
 	
 	/**
 	 * Step the simulation forward by dt.
@@ -346,8 +379,8 @@ public class VortonSpace {
 			throw new IllegalStateException("Threads must be initialized with initializeThreads before calling stepSimulation.");
 		}
 		
-		timeAccumulator += dt;
-		if (timeAccumulator > DT){
+		timeAccumulator += dt; //let's be honest, this lags.
+		if (timeAccumulator > DT){ //if you put a "while" instead of an "if", simulation is better, but performance is unacceptable.
 			swapBuffers();
 			buildVortonTree();
 			
@@ -414,8 +447,8 @@ public class VortonSpace {
 		}
 		vortonTree.getRoot().updateDerivedQuantities();
 		if (debugPrintln){
-		System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms) + 
-				" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
+			System.out.println("Tree build took (ms) : " + (System.currentTimeMillis() - ms) + 
+					" Bounds: " + vortonTree.getRoot().getMin() + ", " + vortonTree.getRoot().getMax());
 		}
 	}
 
@@ -615,7 +648,6 @@ public class VortonSpace {
 				try {
 					vorton = stretchWork.take();
 				} catch (InterruptedException ex) {
-					ex.printStackTrace();
 					break mainloop;
 				}
 				
@@ -653,7 +685,6 @@ public class VortonSpace {
 				try {
 					vorton = advectWork.take();
 				} catch (InterruptedException ex) {
-					ex.printStackTrace();
 					break mainloop;
 				}
 				
@@ -685,7 +716,6 @@ public class VortonSpace {
 					try {
 						item = diffuseWork.take();
 					} catch (InterruptedException ex) {
-						ex.printStackTrace();
 						break mainloop;
 					}
 
@@ -714,7 +744,6 @@ public class VortonSpace {
 				try {
 					tracer = tracerWork.take();
 				} catch (InterruptedException ex) {
-					ex.printStackTrace();
 					break mainloop;
 				}
 				

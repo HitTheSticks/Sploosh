@@ -7,6 +7,7 @@ import com.htssoft.sploosh.VortonSpace;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
 import com.jme3.math.FastMath;
+import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -32,7 +33,7 @@ public class FluidView extends Geometry {
 		this.nTracers = nTracers;
 		this.setShadowMode(ShadowMode.Off);
 		this.setQueueBucket(Bucket.Transparent);
-		//this.setIgnoreTransform(true);
+		this.setIgnoreTransform(true);
 		
 		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
 		this.addControl(new FluidControl());
@@ -52,16 +53,16 @@ public class FluidView extends Geometry {
 	}
 		
 	public void distributeTracers(Vector3f center, float radius){
-		this.getWorldTransform();
+		Transform trans = this.getWorldTransform();
+		
 		List<Vector3f> tracers = tracerMesh.getBuffer();
 		for (Vector3f t : tracers){
 			t.set(randomComponent(), randomComponent(), randomComponent());
 			t.normalizeLocal();
 			t.multLocal(radius * FastMath.nextRandomFloat());
 			t.addLocal(center);
-			//this.getWorldTransform().transformVector(t, t);
+			trans.transformVector(t, t);
 		}
-		tracerMesh.updateBuffers();
 	}
 	
 	protected float randomComponent(){

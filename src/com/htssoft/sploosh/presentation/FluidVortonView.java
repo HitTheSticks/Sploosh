@@ -35,7 +35,7 @@ public class FluidVortonView extends Geometry {
 		this.nTracers = fluid.getNVortons();
 		this.setShadowMode(ShadowMode.Off);
 		this.setQueueBucket(Bucket.Transparent);
-		//this.setIgnoreTransform(true);
+		this.setIgnoreTransform(true);
 		
 		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
 		this.addControl(new FluidControl());
