@@ -7,6 +7,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.htssoft.sploosh.presentation.FluidTracer;
 import com.htssoft.sploosh.space.OTree;
 import com.htssoft.sploosh.space.OTree.OTreeNode;
 import com.jme3.math.FastMath;
@@ -43,7 +44,7 @@ public class VortonSpace {
 	protected LinkedBlockingQueue<Vorton> stretchWork = new LinkedBlockingQueue<Vorton>();
 	protected LinkedBlockingQueue<DiffuseWorkItem> diffuseWork = new LinkedBlockingQueue<DiffuseWorkItem>();
 	protected LinkedBlockingQueue<Vorton> advectWork = new LinkedBlockingQueue<Vorton>();
-	protected LinkedBlockingQueue<Vector3f> tracerWork = new LinkedBlockingQueue<Vector3f>();
+	protected LinkedBlockingQueue<FluidTracer> tracerWork = new LinkedBlockingQueue<FluidTracer>();
 	protected int gridResolution;
 	protected AtomicInteger outstandingWorkItems = new AtomicInteger();
 	protected float timeAccumulator = 0f;
@@ -405,7 +406,7 @@ public class VortonSpace {
 	 * with the new positions.
 	 * @param tpf how much time to simulate for particle advection. In reality, particles are advanced by min(tpf, DT).
 	 * */
-	public void advectTracers(List<Vector3f> tracerPositions, float tpf){
+	public void advectTracers(List<FluidTracer> tracerPositions, float tpf){
 		if (vortonTree == null){
 			buildVortonTree();
 		}
@@ -577,10 +578,12 @@ public class VortonSpace {
 		v.setPosition(vars.temp1);
 	}
 	
-	protected void advectTracer(Vector3f tracer, List<Vorton> influences, ThreadVars vars){
-		computeVelocityFromVortons(tracer, influences, vars.temp0, vars.temp1, vars.temp2);
+	protected void advectTracer(FluidTracer tracer, List<Vorton> influences, ThreadVars vars){
+		computeVelocityFromVortons(tracer.position, influences, vars.temp0, vars.temp1, vars.temp2);
 		float step = DT < currentTPF ? DT : currentTPF;
-		tracer.addLocal(vars.temp0.multLocal(step));
+		tracer.velocity.set(vars.temp0);
+		tracer.position.addLocal(vars.temp0.multLocal(step));
+		tracer.age += step;
 	}
 	
 	/**
@@ -740,7 +743,7 @@ public class VortonSpace {
 		public void run(){
 			mainloop:
 			while (!Thread.interrupted()){
-				Vector3f tracer;
+				FluidTracer tracer;
 				try {
 					tracer = tracerWork.take();
 				} catch (InterruptedException ex) {
@@ -748,7 +751,7 @@ public class VortonSpace {
 				}
 				
 				localVortons.clear();
-				vortonTree.getRoot().getInfluentialVortons(tracer, localVortons);
+				vortonTree.getRoot().getInfluentialVortons(tracer.position, localVortons);
 				advectTracer(tracer, localVortons, vars);
 				
 				int newval = outstandingWorkItems.decrementAndGet();

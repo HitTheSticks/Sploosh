@@ -22,7 +22,7 @@ import com.jme3.scene.control.Control;
  * It is largely used for debugging the simulation.
  * */
 public class FluidVortonView extends Geometry {
-	protected FluidTracerMesh tracerMesh;
+	protected SimpleFluidMesh tracerMesh;
 	protected VortonSpace fluid;
 	protected int nTracers;
 	
@@ -37,7 +37,7 @@ public class FluidVortonView extends Geometry {
 		this.setQueueBucket(Bucket.Transparent);
 		this.setIgnoreTransform(true);
 		
-		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
+		this.setMesh(tracerMesh = new SimpleFluidMesh(nTracers));
 		this.addControl(new FluidControl());
 		this.setCullHint(CullHint.Never);
 	}

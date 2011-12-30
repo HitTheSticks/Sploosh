@@ -52,16 +52,17 @@ public class FluidView extends Geometry {
 		tracerMesh.setScale(scale);
 	}
 		
-	public void distributeTracers(Vector3f center, float radius){
+	public void distributeTracers(Vector3f center, float radius, float lifetime){
 		Transform trans = this.getWorldTransform();
 		
-		List<Vector3f> tracers = tracerMesh.getBuffer();
-		for (Vector3f t : tracers){
-			t.set(randomComponent(), randomComponent(), randomComponent());
-			t.normalizeLocal();
-			t.multLocal(radius * FastMath.nextRandomFloat());
-			t.addLocal(center);
-			trans.transformVector(t, t);
+		List<FluidTracer> tracers = tracerMesh.getBuffer();
+		for (FluidTracer t : tracers){
+			t.lifetime = lifetime;
+			t.position.set(randomComponent(), randomComponent(), randomComponent());
+			t.position.normalizeLocal();
+			t.position.multLocal(radius * FastMath.nextRandomFloat());
+			t.position.addLocal(center);
+			trans.transformVector(t.position, t.position);
 		}
 	}
 	

@@ -37,7 +37,7 @@ public class TestFluid extends SimpleApplication {
 		
 		fv = new FluidView(6000, fluid);
 		fv.setScale(new Vector3f(0.5f, 0.5f, 0.5f));
-		fv.distributeTracers(new Vector3f(0f, 0.5f, 0f), 1f);
+		fv.distributeTracers(new Vector3f(0f, 0.5f, 0f), 1f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
 		mat.getAdditionalRenderState().setPointSprite(true);
 		fv.setMaterial(mat);
