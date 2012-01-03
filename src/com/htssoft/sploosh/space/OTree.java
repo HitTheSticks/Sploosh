@@ -222,7 +222,7 @@ public class OTree {
 		 * */
 		public void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
 			if (!contains(pos)){
-				if (!superVorton.getVort().equals(Vector3f.ZERO)){
+				if (!superVorton.getVort().isZero()){
 					storage.add(superVorton);
 				}
 				return;

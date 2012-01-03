@@ -38,6 +38,15 @@ public class FluidView extends Geometry {
 		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
 		this.addControl(new FluidControl());
 		this.setCullHint(CullHint.Never);
+		
+		if (fluid.hasDriver()){
+			enableSim = false;
+			System.out.println("Not driving.");
+		}
+		else {
+			fluid.setHasDriver(true);
+			System.out.println("Driving.");
+		}
 	}
 	
 	public void enableSim(boolean enable){
@@ -72,13 +81,14 @@ public class FluidView extends Geometry {
 	
 	
 	public void updateFromControl(float tpf){
-		if (!enableSim){
-			return;
+		if (enableSim){
+			fluid.stepSimulation(tpf);
 		}
+
 		fluid.advectTracers(tracerMesh.getBuffer(), tpf);
 		tracerMesh.updateBuffers();
-		fluid.stepSimulation(tpf);
 		this.setBoundRefresh();
+		
 	}
 	
 	public void renderFromControl(){

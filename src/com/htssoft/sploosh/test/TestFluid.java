@@ -35,7 +35,7 @@ public class TestFluid extends SimpleApplication {
 		//fluid.injectVortexRing(0.1f, 1f, 10f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		fluid.initializeThreads(4);
 		
-		fv = new FluidView(6000, fluid);
+		fv = new FluidView(1000, fluid);
 		fv.setScale(new Vector3f(0.5f, 0.5f, 0.5f));
 		fv.distributeTracers(new Vector3f(0f, 0.5f, 0f), 1f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");

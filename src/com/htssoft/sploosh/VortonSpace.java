@@ -53,6 +53,7 @@ public class VortonSpace {
 	protected float currentTPF = 0f;
 	protected boolean debugPrintln = false;
 	protected Transform inputTransform = Transform.IDENTITY.clone();
+	protected boolean hasDriver = false;
 	
 	/**
 	 * Create a new vorton simulation with the given
@@ -89,6 +90,14 @@ public class VortonSpace {
 		backPos.set(backPositions);
 		frontVort.set(vorticities);
 		backVort.set(backVorticities);
+	}
+	
+	public void setHasDriver(boolean hasDriver){
+		this.hasDriver = hasDriver;
+	}
+	
+	public boolean hasDriver(){
+		return hasDriver;
 	}
 	
 	/**
@@ -293,10 +302,7 @@ public class VortonSpace {
 				temp.set(phiHat).multLocal(vortPhi * strength);
 				
 				temp.addLocal(v.getVort());
-				v.setVort(temp);
-			}
-			else {
-				v.setVort(Vector3f.ZERO);
+				v.accumulateVorticity(temp);
 			}
 			v.setPosition(v.getPosition()); //copy to front buffer
 		}
@@ -321,9 +327,6 @@ public class VortonSpace {
 		inputTransform.transformVector(center, center);
 		
 		direction.normalizeLocal();
-		
-		System.out.println("Direction: " + direction);
-		System.out.println("Center: " + center);
 		
 		float radiusOuter = radius + thickness;
 		Vector3f fromCenter = new Vector3f();
@@ -365,7 +368,7 @@ public class VortonSpace {
 				direction.cross(rhoHat, phiHat);
 				phiHat.multLocal(vortPhi * strength);
 				
-				v.setVort(phiHat);
+				v.accumulateVorticity(phiHat);
 			}
 			v.setPosition(v.getPosition()); //copy to front buffer
 		}
@@ -525,15 +528,9 @@ public class VortonSpace {
 	}
 	
 	protected void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
-		if (!Vector3f.isValidVector(v.getVort())){
-			return;
-		}
-		if (!Vector3f.isValidVector(v.getPosition())){
-			return;
-		}
 		temp2.set(position).subtractLocal(v.getPosition());
 		float dist2 = temp2.lengthSquared() + AVOID_SINGULARITY;
-		float oneOverDist = 1f / temp2.length();
+		float oneOverDist = 1f / FastMath.sqrt(dist2);
 		float distLaw;
 		if (dist2 < VORTON_RADIUS_SQ){
 			distLaw = oneOverDist / VORTON_RADIUS_SQ;
@@ -642,7 +639,7 @@ public class VortonSpace {
 	 * */
 	protected class StretchThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
 		
 		public void run(){
 			mainloop:
@@ -680,7 +677,7 @@ public class VortonSpace {
 	 * */
 	protected class AdvectThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
 		public void run(){
 			mainloop:
 			while (!Thread.interrupted()){
@@ -739,7 +736,7 @@ public class VortonSpace {
 	 * */
 	protected class TracerThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
 		public void run(){
 			mainloop:
 			while (!Thread.interrupted()){
@@ -780,6 +777,10 @@ public class VortonSpace {
 			
 			backVort.get()[index].set(vort);
 			frontVort.get()[index].set(vort);
+		}
+		
+		public void accumulateVorticity(Vector3f vortContrib){
+			frontVort.get()[index].addLocal(vortContrib);
 		}
 		
 		public Vector3f getPosition(){
