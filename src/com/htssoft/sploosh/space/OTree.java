@@ -18,12 +18,18 @@ import com.jme3.math.Vector3f;
 public class OTree {
 	protected OTreeNode root;
 	Vector3f tempVec = new Vector3f();
+	Vector3f tempMin = new Vector3f(), tempMax = new Vector3f();
 	
 	/**
 	 * Create a new octree with the given bounding box.
 	 * */
 	public OTree(Vector3f min, Vector3f max){
 		root = new OTreeNode(min, max, 0);
+	}
+	
+	public void rebuild(Vector3f min, Vector3f max, int level){
+		root.reform(min, max);
+		root.split(0, level);
 	}
 	
 	/**
@@ -110,24 +116,37 @@ public class OTree {
 			}
 		}
 		
+		public void reform(Vector3f min, Vector3f max){
+			cellMin.set(min);
+			cellMax.set(max);
+			superVorton.getPosition().zero();
+			superVorton.getVort().zero();
+			vortonsPassedThroughHere = 0;
+		}
+		
 		/**
 		 * Split this node.
 		 * */
 		protected void split(int curLevel, int targetLevel){
-			if (splitPoint != null){
-				throw new IllegalStateException("This cell has already been split. You cannot resplit it.");
-			}
 			
 			if (curLevel == targetLevel){
-				items = new ArrayList<Vorton>();
+				if (items == null){
+					items = new ArrayList<Vorton>();
+				}
+				else {
+					items.clear();
+				}
 				return;
 			}
 			
-			splitPoint = new Vector3f();
-			splitPoint.interpolate(cellMin, cellMax, 0.5f);	
-			children = new OTreeNode[8];
-			
-			Vector3f tempMin = new Vector3f(), tempMax = new Vector3f();
+			if (splitPoint == null){
+				splitPoint = new Vector3f();
+				splitPoint.interpolate(cellMin, cellMax, 0.5f);	
+				children = new OTreeNode[8];
+			}
+			else {
+				splitPoint.interpolate(cellMin, cellMax, 0.5f);
+			}
 			
 			for (int i = 0; i < 8; i++){
 				int child = i;
@@ -158,9 +177,18 @@ public class OTree {
 					tempMax.z = cellMax.z;
 				}
 				
-				OTreeNode newNode = new OTreeNode(tempMin, tempMax, curLevel + 1); 
-				children[child] = newNode;
-				newNode.split(curLevel + 1, targetLevel);
+				OTreeNode childNode;
+				
+				if (children[child] == null){
+					childNode = new OTreeNode(tempMin, tempMax, curLevel + 1); 
+					children[child] = childNode;	
+				}
+				else {
+					childNode = children[child];
+					childNode.reform(tempMin, tempMax);
+				}
+								
+				childNode.split(curLevel + 1, targetLevel);
 			}
 			items = null;
 		}

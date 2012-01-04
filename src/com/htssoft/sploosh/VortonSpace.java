@@ -176,16 +176,6 @@ public class VortonSpace {
 	}
 	
 	/**
-	 * This isn't going to work, since the threads have references back here, keeping
-	 * this live.
-	 * 
-	 * But, whatever.
-	 * */
-	public void finalize(){
-		stopThreads();
-	}
-	
-	/**
 	 * Randomize all vortons' positions and vorticities.
 	 * 
 	 * Honestly, this is useless unless you just want chaos.
@@ -443,8 +433,13 @@ public class VortonSpace {
 			min.minLocal(v.getPosition());
 			max.maxLocal(v.getPosition());
 		}
-		vortonTree = new OTree(min, max);
-		vortonTree.splitTo(gridResolution);
+		if (vortonTree == null){
+			vortonTree = new OTree(min, max);
+			vortonTree.splitTo(gridResolution);
+		}
+		else {
+			vortonTree.rebuild(min, max, gridResolution);
+		}
 		long ms = System.currentTimeMillis();
 		for (Vorton v : vortons){
 			vortonTree.getRoot().insert(v);
@@ -639,7 +634,7 @@ public class VortonSpace {
 	 * */
 	protected class StretchThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(1000);
 		
 		public void run(){
 			mainloop:
