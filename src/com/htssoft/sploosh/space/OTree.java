@@ -27,6 +27,13 @@ public class OTree {
 		root = new OTreeNode(min, max, 0);
 	}
 	
+	/**
+	 * Clone constructor.
+	 * */
+	protected OTree(OTree other){
+		root = other.root.deepCopy();
+	}
+	
 	public void rebuild(Vector3f min, Vector3f max, int level){
 		root.reform(min, max);
 		root.split(0, level);
@@ -46,6 +53,27 @@ public class OTree {
 		return root;
 	}
 	
+	
+	/**
+	 * Creates a deep copy of the current OTree.
+	 * 
+	 * This creates SimpleVorton copies of BufferedVortons
+	 * from the live simulation.
+	 * 
+	 * It is designed for "freezing" a simuation. Conceivably,
+	 * it could be used to can a sequence of Vorton states.
+	 * */
+	public OTree deepCopy(){
+		return new OTree(this);
+	}
+	
+	/**
+	 * Insert into tree.
+	 * */
+	public void insert(Vorton v){
+		root.insert(v);
+	}
+	
 	/**
 	 * A node in the octree.
 	 * */
@@ -56,7 +84,7 @@ public class OTree {
 		Vector3f splitPoint;
 		ArrayList<Vorton> items = null;
 		OTreeNode[] children = null;
-		Vorton superVorton = new SimpleVorton();
+		SimpleVorton superVorton = new SimpleVorton();
 		int vortonsPassedThroughHere = 0;
 		
 		OTreeNode(Vector3f min, Vector3f max, int level){
@@ -80,7 +108,7 @@ public class OTree {
 		/**
 		 * Insert another point
 		 * */
-		public void insert(Vorton vorton){
+		protected void insert(Vorton vorton){
 			superVorton.getVort().addLocal(vorton.getVort());
 			//vorton.getPosition().mult(vorton.getVort().length(), tempVec);
 			superVorton.getPosition().addLocal(vorton.getPosition()); //this needs to be eventually divided by n
@@ -246,11 +274,14 @@ public class OTree {
 		 * Get the list of vortons (super and elementary) that contribute
 		 * to the given position's velocity.
 		 * 
-		 * This is essentially the multipole method.
+		 * This is essentially the multipole method. [Or, maybe not, upon further
+		 * reading. Anybody know what the difference is between this and formal
+		 * "fast multipole method"?]
 		 * */
 		public void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
 			if (!contains(pos)){
-				if (!superVorton.getVort().isZero()){
+				Vector3f superVort = superVorton.getVort();
+				if (superVort.x != 0f || superVort.y != 0f || superVort.z != 0f){ //non-zero vort contributes
 					storage.add(superVorton);
 				}
 				return;
@@ -331,6 +362,33 @@ public class OTree {
 				}
 				child.preOrderTraverse(out);
 			}
+		}
+		
+		public OTreeNode deepCopy(){
+			OTreeNode other = new OTreeNode(cellMin, cellMax, level);
+			other.superVorton.set(this.superVorton);
+			
+			if (this.splitPoint != null){
+				other.splitPoint = new Vector3f(this.splitPoint);
+			}
+			
+			if (items != null){
+				other.items = new ArrayList<Vorton>();
+				for (Vorton v : items){
+					other.items.add(new SimpleVorton(v));
+				}
+			}
+			
+			if (children != null){
+				other.children = new OTreeNode[8];
+				for (int i = 0; i < children.length; i++){
+					if (children[i] != null){
+						other.children[i] = children[i].deepCopy();
+					}
+				}
+			}
+			
+			return other;
 		}
 	}
 	

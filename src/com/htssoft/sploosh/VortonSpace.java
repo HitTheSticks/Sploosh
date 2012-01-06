@@ -55,6 +55,7 @@ public class VortonSpace {
 	protected Transform inputTransform = Transform.IDENTITY.clone();
 	protected boolean hasDriver = false;
 	
+	
 	/**
 	 * Create a new vorton simulation with the given
 	 * number of vortons.
@@ -442,7 +443,7 @@ public class VortonSpace {
 		}
 		long ms = System.currentTimeMillis();
 		for (Vorton v : vortons){
-			vortonTree.getRoot().insert(v);
+			vortonTree.insert(v);
 		}
 		vortonTree.getRoot().updateDerivedQuantities();
 		if (debugPrintln){
@@ -513,31 +514,6 @@ public class VortonSpace {
 	}
 	
 	
-	protected void computeVelocityFromVortons(Vector3f position, List<Vorton> influences, 
-											  Vector3f store, Vector3f temp1, Vector3f temp2){
-		store.zero();
-		for (Vorton v : influences){
-			computeVelocityContribution(position, v, store, temp1, temp2);
-		}
-		store.multLocal(ONE_OVER_4_PI);
-	}
-	
-	protected void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
-		temp2.set(position).subtractLocal(v.getPosition());
-		float dist2 = temp2.lengthSquared() + AVOID_SINGULARITY;
-		float oneOverDist = 1f / FastMath.sqrt(dist2);
-		float distLaw;
-		if (dist2 < VORTON_RADIUS_SQ){
-			distLaw = oneOverDist / VORTON_RADIUS_SQ;
-		}
-		else {
-			 distLaw = oneOverDist / dist2;
-		}
-		
-		temp1.set(v.getVort()).multLocal(FOUR_THIRDS_PI * VORTON_RADIUS_CUBE).crossLocal(temp2).multLocal(distLaw);
-		accum.addLocal(temp1);
-	}
-	
 	/**
 	 * Honestly, this is super slow and kinda broken.
 	 * */
@@ -547,7 +523,7 @@ public class VortonSpace {
 		}
 		
 		for (int i = 0; i < jacobianOffsets.length; i++){
-			computeVelocityFromVortons(vars.vec[i], influences, vars.temp2, vars.temp0, vars.temp1);
+			TracerMath.computeVelocityFromVortons(vars.vec[i], influences, vars.temp2, vars.temp0, vars.temp1);
 			vars.vec[i].set(vars.temp2);
 		}
 		
@@ -561,21 +537,13 @@ public class VortonSpace {
 	}
 	
 	protected void advectVorton(Vorton v, List<Vorton> influences, ThreadVars vars){
-		computeVelocityFromVortons(v.getPosition(), influences, vars.temp0, vars.temp1, vars.temp2);
+		TracerMath.computeVelocityFromVortons(v.getPosition(), influences, vars.temp0, vars.temp1, vars.temp2);
 		
 		vars.temp0.multLocal(DT);
 		
 		v.getPosition(vars.temp1);
 		vars.temp1.addLocal(vars.temp0);
 		v.setPosition(vars.temp1);
-	}
-	
-	protected void advectTracer(FluidTracer tracer, List<Vorton> influences, ThreadVars vars){
-		computeVelocityFromVortons(tracer.position, influences, vars.temp0, vars.temp1, vars.temp2);
-		float step = DT < currentTPF ? DT : currentTPF;
-		tracer.velocity.set(vars.temp0);
-		tracer.position.addLocal(vars.temp0.multLocal(step));
-		tracer.age += step;
 	}
 	
 	/**
@@ -744,7 +712,7 @@ public class VortonSpace {
 				
 				localVortons.clear();
 				vortonTree.getRoot().getInfluentialVortons(tracer.position, localVortons);
-				advectTracer(tracer, localVortons, vars);
+				TracerMath.advectTracer(tracer, localVortons, vars, currentTPF);
 				
 				int newval = outstandingWorkItems.decrementAndGet();
 				if (newval == 0){
