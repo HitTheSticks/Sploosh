@@ -2,19 +2,22 @@ package com.htssoft.sploosh;
 
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
 import com.htssoft.sploosh.space.OTree;
+import com.jme3.math.Transform;
+import com.jme3.math.Vector3f;
 
 public class VortonFreezeframe {
 	OTree vortonTree;
 	protected Thread[] threads;
 	protected FluidTracer[] currentWorkingTracers;
 	protected LinkedBlockingQueue<WorkRange> workRanges = new LinkedBlockingQueue<VortonFreezeframe.WorkRange>();
-	protected AtomicInteger outstandingWorkItems = new AtomicInteger(0);
+	protected LinkedBlockingQueue<WorkRange> completedRanges = new LinkedBlockingQueue<VortonFreezeframe.WorkRange>();
 	protected boolean debugPrintln = true;
 	protected float currentTPF;
+	protected Transform objectTransform = new Transform();
+
 	
 	public VortonFreezeframe(OTree vortons){
 		vortonTree = vortons;
@@ -27,31 +30,72 @@ public class VortonFreezeframe {
 		}
 	}
 	
-	public void advectTracers(FluidTracer[] tracers){
-		outstandingWorkItems.set(tracers.length);
+	/**
+	 * Update the transform to match animation in the scene.
+	 * */
+	public void updateTransform(Transform trans){
+		objectTransform.set(trans);
+	}
+	
+	/**
+	 * This advects tracers multithreadedly.
+	 * 
+	 * This is basically the same logic as advects tracers
+	 * in the VortonSpace. However, since the vortons
+	 * don't move, you can expect different motion.
+	 * */
+	public void advectTracers(FluidTracer[] tracers, float tpf){
+		completedRanges.clear();
+		currentWorkingTracers = tracers;
+		currentTPF = tpf;
 		
+		//ideally, how big is a block?
 		int blockSize = tracers.length / threads.length;
+		int maxIndex = tracers.length - 1;
 		
 		int remainingCounter = tracers.length;
 		int start = 0;
-		
-		while (remainingCounter > 0){
-			workRanges.add(new WorkRange(start, start + blockSize - 1));
-			start += blockSize;
+		int workItems = 0;
+		boolean remainderFlag = false;
+		//I'm kinda tired, so yes, I'm sure there's something way more elegant.
+		while (remainingCounter > 0){ 
+			workItems++;
 			remainingCounter -= blockSize;
+			int end = start + blockSize - 1;
+			
+			if (end > maxIndex){
+				end = maxIndex;
+			}
+			
+			/*
+			 * I think this heuristic works for small numbers of threads
+			 * (as is typical on most computers). At least none of the
+			 * numbers I've run through here have given wildly stupid
+			 * answers with, like, 4 or 8 or 1741 threads.
+			 * */
+			if (remainingCounter < blockSize){
+				end += remainingCounter;
+				remainderFlag = true;
+			}
+			
+			workRanges.add(new WorkRange(start, end));
+			start = end + 1;
+			
+			if (remainderFlag){
+				break;
+			}
 		}
 		
-		long ms = System.currentTimeMillis();
-		synchronized (outstandingWorkItems){
+		while (workItems > 0){
 			try {
-				while (outstandingWorkItems.get() != 0){
-					outstandingWorkItems.wait();
-				}
-				if (debugPrintln)
-					System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
-			} catch (InterruptedException ex) {
-				ex.printStackTrace();
+				completedRanges.take();
+				workItems--;
+			} catch (InterruptedException e) {
+				System.err.println("GL Thread interrupted?");
+				e.printStackTrace();
+				break;
 			}
+			completedRanges.clear();
 		}
 	}
 
@@ -60,7 +104,8 @@ public class VortonFreezeframe {
 	 * */
 	protected class TracerThread implements Runnable {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(1000);
+		Vector3f workingVel = new Vector3f(), transformedPos = new Vector3f();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(vortonTree.nVortons());
 		public void run(){
 			mainloop:
 			while (!Thread.interrupted()){
@@ -73,35 +118,40 @@ public class VortonFreezeframe {
 				
 				
 				for (int i = workRange.first; i <= workRange.last; i++){
-					FluidTracer tracer = currentWorkingTracers[i]; 
+					FluidTracer tracer = currentWorkingTracers[i];
 					localVortons.clear();
-					vortonTree.getRoot().getInfluentialVortons(tracer.position, localVortons);
-					TracerMath.advectTracer(tracer, localVortons, vars, currentTPF);					
+					
+					objectTransform.transformInverseVector(tracer.position, transformedPos);
+					
+					vortonTree.getInfluentialVortons(vars.temp0, localVortons);
+					TracerMath.computeVelocityFromVortons(transformedPos, localVortons, workingVel, vars.temp0, vars.temp1);
+					
+					objectTransform.getRotation().multLocal(workingVel);
+					
+					tracer.velocity.set(workingVel); //now, do we set the velocity, or...
+					//tracer.velocity.interpolate(workingVel, currentTPF); //...drag? or...
+					//tracer.velocity.addLocal(workingVel.mult(currentTPF)); //...different drag?
+					
+					
+					vars.temp0.set(tracer.velocity).multLocal(currentTPF);
+					tracer.position.addLocal(vars.temp0);
 				}
 				
-				int newval = outstandingWorkItems.decrementAndGet();
-				if (newval == 0){
-					synchronized (outstandingWorkItems) {
-						outstandingWorkItems.notifyAll();
-					}
-				}
+				completedRanges.add(workRange);
 			}
 		}
 	}
 
-	
+	/**
+	 * A range of work for a worker thread.
+	 * */
 	protected class WorkRange {
 		final int first;
 		final int last;
-		
+
 		WorkRange(int first, int last){
 			this.first = first;
-			if (last > currentWorkingTracers.length - 1){
-				this.last = currentWorkingTracers.length - 1;
-			}
-			else {
-				this.last = last;
-			}
+			this.last = last;
 		}
 	}
 }

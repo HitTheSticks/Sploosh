@@ -1,0 +1,32 @@
+MaterialDef Fluid {
+ 
+    MaterialParameters {
+        Texture2D Texture
+        Boolean AlphaMap
+ 
+        Color StartColor
+        Color EndColor
+ 
+        Float StartSize
+        Float EndSize
+    }
+ 
+    Technique {
+        VertexShader GLSL150:   materials/vertex/Fluid.vert
+        FragmentShader GLSL150: materials/fragment/Fluid.frag
+ 
+        WorldParameters {
+            WorldViewProjectionMatrix
+        }
+ 
+        Defines {
+            USE_TEXTURE : Texture
+            PURE_ALPHA_MAP : AlphaMap
+        }
+ 
+        RenderState {
+            PointSprite On
+        }
+    }
+ 
+}

@@ -8,7 +8,6 @@ import com.htssoft.sploosh.SimpleVorton;
 import com.htssoft.sploosh.Vorton;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
-
 /**
  * This is a basic aggregating octree.
  * 
@@ -25,6 +24,10 @@ public class OTree {
 	 * */
 	public OTree(Vector3f min, Vector3f max){
 		root = new OTreeNode(min, max, 0);
+	}
+	
+	public int nVortons(){
+		return root.vortonsPassedThroughHere;
 	}
 	
 	/**
@@ -53,7 +56,6 @@ public class OTree {
 		return root;
 	}
 	
-	
 	/**
 	 * Creates a deep copy of the current OTree.
 	 * 
@@ -72,6 +74,13 @@ public class OTree {
 	 * */
 	public void insert(Vorton v){
 		root.insert(v);
+	}
+	
+	/**
+	 * Get the influential vortons for the given position.
+	 * */
+	public void getInfluentialVortons(Vector3f query, List<Vorton> storage) {
+		root.getInfluentialVortons(query, storage);
 	}
 	
 	/**
@@ -278,7 +287,7 @@ public class OTree {
 		 * reading. Anybody know what the difference is between this and formal
 		 * "fast multipole method"?]
 		 * */
-		public void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
+		protected void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
 			if (!contains(pos)){
 				Vector3f superVort = superVorton.getVort();
 				if (superVort.x != 0f || superVort.y != 0f || superVort.z != 0f){ //non-zero vort contributes
@@ -304,7 +313,7 @@ public class OTree {
 		/**
 		 * Get all of the Vortons in the given cell.
 		 * */
-		public void queryCellNeighbors(Vector3f pos, List<Vorton> storage){
+		protected void queryCellNeighbors(Vector3f pos, List<Vorton> storage){
 			if (!contains(pos)){ //we don't contain the position
 				return;
 			}

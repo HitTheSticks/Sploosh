@@ -39,6 +39,14 @@ public class TracerMath {
 		accum.addLocal(temp1);
 	}
 
+	public static void advectWorldTracer(FluidTracer tracer, Vector3f localPosition, List<Vorton> influences, ThreadVars vars, float currentTPF){
+		Vector3f fieldVelocity = vars.vec[0];
+		computeVelocityFromVortons(localPosition, influences, fieldVelocity, vars.vec[1], vars.vec[2]);
+		if (fieldVelocity.length() < tracer.velocity.length()){
+			tracer.velocity.interpolate(fieldVelocity, currentTPF);
+		}
+	}
+	
 	/**
 	 * Move a tracer.
 	 * */

@@ -2,7 +2,7 @@ package com.htssoft.sploosh.presentation;
 
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.jme3.bounding.BoundingBox;
@@ -16,7 +16,7 @@ import com.jme3.util.BufferUtils;
 
 public class FluidTracerMesh extends Mesh {
 	protected int verts;
-	protected ArrayList<FluidTracer> tracers;
+	protected FluidTracer[] tracers;
 	protected Vector3f minPosition = new Vector3f();
 	protected Vector3f maxPosition = new Vector3f();
 	protected Vector3f scale = new Vector3f(1f, 1f, 1f);
@@ -24,9 +24,9 @@ public class FluidTracerMesh extends Mesh {
 	
 	public FluidTracerMesh(int nParticles){
 		verts = nParticles;
-		tracers = new ArrayList<FluidTracer>(verts);
+		tracers = new FluidTracer[verts];
 		for (int i = 0; i < verts; i++){
-			tracers.add(new FluidTracer());
+			tracers[i] = new FluidTracer();
 		}
 		
 		setMode(Mode.Points);
@@ -59,6 +59,10 @@ public class FluidTracerMesh extends Mesh {
 	}
 	
 	public List<FluidTracer> getBuffer(){
+		return Arrays.asList(tracers);
+	}
+	
+	public FluidTracer[] getBufferArray(){
 		return tracers;
 	}
 	
@@ -77,8 +81,8 @@ public class FluidTracerMesh extends Mesh {
 		pos.clear();
 		var.clear();
 		
-		for (int i = 0; i < tracers.size(); i++){
-			FluidTracer t = tracers.get(i);
+		for (int i = 0; i < tracers.length; i++){
+			FluidTracer t = tracers[i];
 			temp.set(t.position);
 			temp.multLocal(scale);
 			pos.put(temp.x).put(temp.y).put(temp.z);

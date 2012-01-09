@@ -615,7 +615,7 @@ public class VortonSpace {
 				}
 				
 				localVortons.clear();
-				vortonTree.getRoot().getInfluentialVortons(vorton.getPosition(), localVortons);
+				vortonTree.getInfluentialVortons(vorton.getPosition(), localVortons);
 
 				getJacobian(localVortons, vorton.getPosition(), vars);
 				
@@ -652,7 +652,7 @@ public class VortonSpace {
 				}
 				
 				localVortons.clear();
-				vortonTree.getRoot().getInfluentialVortons(vorton.getPosition(), localVortons);
+				vortonTree.getInfluentialVortons(vorton.getPosition(), localVortons);
 				localVortons.remove(vorton);
 				advectVorton(vorton, localVortons, vars);
 				
@@ -711,7 +711,7 @@ public class VortonSpace {
 				}
 				
 				localVortons.clear();
-				vortonTree.getRoot().getInfluentialVortons(tracer.position, localVortons);
+				vortonTree.getInfluentialVortons(tracer.position, localVortons);
 				TracerMath.advectTracer(tracer, localVortons, vars, currentTPF);
 				
 				int newval = outstandingWorkItems.decrementAndGet();
