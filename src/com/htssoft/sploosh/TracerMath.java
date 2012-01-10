@@ -51,10 +51,23 @@ public class TracerMath {
 	 * Move a tracer.
 	 * */
 	public static void advectTracer(FluidTracer tracer, List<Vorton> influences, ThreadVars vars, float currentTPF){
-		computeVelocityFromVortons(tracer.position, influences, vars.temp0, vars.temp1, vars.temp2);
+		Vector3f fieldVel = vars.temp0;
+		Vector3f moveVel = vars.vec[0];
+		computeVelocityFromVortons(tracer.position, influences, fieldVel, vars.temp1, vars.temp2);
 		float step = VortonSpace.DT < currentTPF ? VortonSpace.DT : currentTPF;
-		tracer.velocity.set(vars.temp0);
-		tracer.position.addLocal(vars.temp0.multLocal(step));
+
+		moveVel.set(0, 0, 0);
+		
+		fieldVel.multLocal(tracer.reynoldsRatio); //fluid contribution
+		moveVel.set(tracer.inertia).multLocal(1f - tracer.reynoldsRatio); //inertial contribution
+		moveVel.addLocal(fieldVel);
+		
+		tracer.velocity.set(moveVel);
+		
+		moveVel.multLocal(step);
+		tracer.position.addLocal(moveVel);
+		tracer.inertia.addLocal(moveVel);
+		
 		tracer.age += step;
 	}
 

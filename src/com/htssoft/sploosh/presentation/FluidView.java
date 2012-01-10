@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import com.htssoft.sploosh.VortonSpace;
+import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
 import com.jme3.math.FastMath;
@@ -27,6 +28,10 @@ public class FluidView extends Geometry {
 	protected VortonSpace fluid;
 	protected int nTracers;
 	protected boolean enableSim = true;
+	protected float reynoldsRatio = 1f;
+	protected FluidTracerAffector affector;
+	protected FluidTracerInitializer init;
+	protected EmitterShape emitterShape;
 	
 	public FluidView(int nTracers, VortonSpace fluid){
 		this.fluid = fluid;
@@ -47,6 +52,10 @@ public class FluidView extends Geometry {
 			fluid.setHasDriver(true);
 			System.out.println("Driving.");
 		}
+	}
+	
+	public void setReynoldsRatio(float r){
+		reynoldsRatio = FastMath.clamp(r, 0f, 1f);
 	}
 	
 	public void enableSim(boolean enable){
@@ -71,7 +80,44 @@ public class FluidView extends Geometry {
 			t.position.normalizeLocal();
 			t.position.multLocal(radius * FastMath.nextRandomFloat());
 			t.position.addLocal(center);
+			t.reynoldsRatio = reynoldsRatio;
 			trans.transformVector(t.position, t.position);
+		}
+	}
+	
+	/**
+	 * Set the emitter shape.
+	 * */
+	public void setShape(EmitterShape shape){
+		this.emitterShape = shape;
+	}
+	
+	/**
+	 * Sets the tracer affector.
+	 * */
+	public void setAffector(FluidTracerAffector affector){
+		this.affector = affector;
+	}
+	
+	public void setInit(FluidTracerInitializer init){
+		this.init = init;
+	}
+	
+	/**
+	 * Initialize tracers from the current shape and affector.
+	 * */
+	public void initializeTracers(float lifetime){
+		if (init == null || emitterShape == null){
+			throw new IllegalStateException("To initialize tracers this way you must have both a shape and an init set.");
+		}
+		Transform trans = this.getWorldTransform();
+		
+		
+		List<FluidTracer> tracers = tracerMesh.getBuffer();
+		for (FluidTracer t : tracers){
+			t.lifetime = lifetime;
+			t.reynoldsRatio = reynoldsRatio;
+			init.initTracer(t, emitterShape, trans);
 		}
 	}
 	
@@ -85,7 +131,15 @@ public class FluidView extends Geometry {
 			fluid.stepSimulation(tpf);
 		}
 
-		fluid.advectTracers(tracerMesh.getBuffer(), tpf);
+		List<FluidTracer> buffer = tracerMesh.getBuffer();
+		
+		if (affector != null){
+			for (FluidTracer t : buffer){
+				affector.affectTracer(t, tpf);
+			}
+		}
+		
+		fluid.advectTracers(buffer, tpf);
 		tracerMesh.updateBuffers();
 		this.setBoundRefresh();
 		

@@ -365,6 +365,56 @@ public class VortonSpace {
 		}
 	}
 	
+	public void injectRadial(float strength, Vector3f center){
+		Vector3f fromCenter = new Vector3f();
+		Vector3f vort = new Vector3f();
+		
+		for (Vorton vI : vortons){
+			BufferedVorton v = (BufferedVorton) vI;
+			
+			fromCenter.set(v.getPosition()).subtractLocal(center);
+			
+			if (fromCenter.length() <= 0.001f){
+				continue;
+			}
+			
+			vort.set(0, 0, 0);
+			vort.z = injectRadialDiff(fromCenter.x, fromCenter.x, fromCenter.y) - 
+					 injectRadialDiff(fromCenter.y, fromCenter.x, fromCenter.y);
+			vort.multLocal(strength);
+			
+			v.accumulateVorticity(vort);
+			v.setPosition(v.getPosition());
+		}
+	}
+	
+	private float injectRadialDiff(float q, float x, float y){
+		return (q * q) / FastMath.pow((x * x + y * y), 1.5f);
+	}
+	
+	/**
+	 * Injects horizontal radial.
+	 * */
+	public void injectRadial(float height, float radius, float strength, float zFudge, int samples, Vector3f center){
+		float degreesPerSample = 360f / (float) samples;
+		float degAccum = 0f;
+		
+		Vector3f dir = new Vector3f();
+		Vector3f pos = new Vector3f();
+		for (int i = 0; i < samples; i++){
+			pos.set(radius * FastMath.cos(FastMath.DEG_TO_RAD * degAccum), 
+					radius * FastMath.sin(FastMath.DEG_TO_RAD * degAccum), 
+					0);
+			dir.set(pos).normalizeLocal();
+			pos.addLocal(center);
+			
+			dir.z += zFudge;
+			injectJetRing(0.01f, height, 0.2f, strength, dir, pos);
+			
+			degAccum += degreesPerSample;
+		}
+	}
+	
 	/**
 	 * Step the simulation forward by dt.
 	 * @param dt how much time to add to the simulation.
