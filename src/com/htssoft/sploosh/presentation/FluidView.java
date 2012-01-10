@@ -5,7 +5,6 @@ import java.util.ArrayDeque;
 import java.util.List;
 
 import com.htssoft.sploosh.TracerAdvecter;
-import com.htssoft.sploosh.VortonSpace;
 import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
@@ -40,7 +39,7 @@ public class FluidView extends Geometry {
 	protected float streamAccum = 0f;
 	protected float particleLife = 0f;
 	
-	public FluidView(int nTracers, VortonSpace fluid){
+	public FluidView(int nTracers, TracerAdvecter fluid){
 		this.fluid = fluid;
 		this.nTracers = nTracers;
 		freeIndexes = new ArrayDeque<Integer>(nTracers);
@@ -163,10 +162,11 @@ public class FluidView extends Geometry {
 	}
 	
 	protected boolean emitStreamParticle(FluidTracer[] tracers, Transform trans){
-		Integer unusedIndex = freeIndexes.peek();
+		Integer unusedIndex = freeIndexes.poll();
 		if (unusedIndex == null){
 			return false;
 		}
+		
 		
 		initTracer(tracers, unusedIndex, trans);
 		
@@ -189,6 +189,8 @@ public class FluidView extends Geometry {
 	}
 	
 	public void updateFromControl(float tpf){
+		fluid.updateTransform(getWorldTransform());
+		
 		if (enableSim){
 			fluid.stepSimulation(tpf);
 		}
@@ -196,6 +198,7 @@ public class FluidView extends Geometry {
 		if (!burstMode){
 			updateStream(tpf);
 		}
+		
 		
 		FluidTracer[] buffer = tracerMesh.getBufferArray();
 		

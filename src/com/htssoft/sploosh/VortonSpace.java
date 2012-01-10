@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
 import com.htssoft.sploosh.space.OTree;
-import com.htssoft.sploosh.space.OTree.OTreeNode;
+import com.htssoft.sploosh.space.OTreeNode;
 import com.jme3.math.FastMath;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
@@ -540,7 +540,7 @@ public class VortonSpace implements TracerAdvecter {
 	}
 	
 	protected void diffuseVorticity(){
-		ArrayList<OTreeNode> groups = new ArrayList<OTree.OTreeNode>();
+		ArrayList<OTreeNode> groups = new ArrayList<OTreeNode>();
 		vortonTree.getRoot().getLeaves(groups);
 		
 		outstandingWorkItems.set(groups.size());
@@ -631,6 +631,12 @@ public class VortonSpace implements TracerAdvecter {
 			
 			v.setVort(vars.temp2);
 		}
+	}
+	
+
+	@Override
+	public void updateTransform(Transform trans) {
+		//nop
 	}
 	
 	/**
@@ -831,4 +837,5 @@ public class VortonSpace implements TracerAdvecter {
 			return this.index == v.index;
 		}
 	}
+
 }

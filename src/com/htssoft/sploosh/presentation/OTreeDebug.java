@@ -3,6 +3,7 @@ package com.htssoft.sploosh.presentation;
 import java.util.List;
 
 import com.htssoft.sploosh.space.OTree;
+import com.htssoft.sploosh.space.OTreeNode;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
@@ -37,10 +38,10 @@ public class OTreeDebug {
 			return;
 		}
 		lastOtree = tree;
-		List<OTree.OTreeNode> nodes = tree.preOrderTraversal();
+		List<OTreeNode> nodes = tree.preOrderTraversal();
 		n.detachAllChildren();
 		
-		for (OTree.OTreeNode onode : nodes){
+		for (OTreeNode onode : nodes){
 			tempMin.set(onode.cellMin).multLocal(scale);
 			tempMax.set(onode.cellMax).multLocal(scale);
 			Box b = new Box(tempMin, tempMax);

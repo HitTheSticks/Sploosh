@@ -5,26 +5,31 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
+import java.util.ArrayList;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
-import com.htssoft.rts.datastore.BuildingDesc;
 import com.htssoft.sploosh.space.OTree;
+import com.htssoft.sploosh.space.OTreeNode;
+import com.jme3.math.Vector3f;
 
 public class OTreeStorage {
 	
 	protected static Kryo getKryo(){
 		Kryo kryo = new Kryo();
+		
+		kryo.register(OTreeNode.class);
+		kryo.register(OTreeNode[].class);
 		kryo.register(OTree.class);
-		kryo.register(OTree.OTreeNode.class);
 		kryo.register(SimpleVorton.class);
+		kryo.register(Vector3f.class);
+		kryo.register(ArrayList.class);
 		
 		return kryo;
 	}
 	
 	protected static ObjectBuffer getObjectBuffer(Kryo k){
-		return new ObjectBuffer(k, 200000);
+		return new ObjectBuffer(k, 2000000);
 	}
 	
 	public static OTree load(InputStream in){

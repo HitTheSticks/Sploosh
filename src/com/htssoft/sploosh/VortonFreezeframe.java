@@ -1,6 +1,7 @@
 package com.htssoft.sploosh;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
@@ -17,16 +18,28 @@ public class VortonFreezeframe implements TracerAdvecter {
 	protected boolean debugPrintln = true;
 	protected float currentTPF;
 	protected Transform objectTransform = new Transform();
+	protected ArrayList<Vorton> vortonList;
 
 	
 	public VortonFreezeframe(OTree vortons){
 		vortonTree = vortons;
 	}
 	
+	public int getNVortons(){
+		return vortonTree.nVortons();
+	}
+	
 	public void spawnThreads(int nThreads){
 		threads = new Thread[nThreads];
 		for (int i = 0 ; i < threads.length; i++){
-			threads[i] = new Thread(); //TODO set runnable
+			threads[i] = new Thread(new TracerThread());
+			threads[i].start();
+		}
+	}
+	
+	public void stopThreads(){
+		for (Thread t : threads){
+			t.interrupt();
 		}
 	}
 	
@@ -107,7 +120,18 @@ public class VortonFreezeframe implements TracerAdvecter {
 				e.printStackTrace();
 				break;
 			}
-			completedRanges.clear();
+		}
+		completedRanges.clear();
+	}
+	
+	public void traceVortons(List<Vector3f> vortons){
+		if (vortonList == null){
+			vortonList = new ArrayList<Vorton>(getNVortons());
+			vortonTree.getVortons(vortonList);
+		}
+		
+		for (int i = 0; i < vortons.size() && i < vortonList.size(); i++){
+			vortons.get(i).set(vortonList.get(i).getPosition());
 		}
 	}
 
