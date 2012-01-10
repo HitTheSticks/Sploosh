@@ -151,6 +151,7 @@ public class FluidView extends Geometry {
 	
 	protected void initTracer(FluidTracer[] tracers, int index, Transform trans){
 		FluidTracer t = tracers[index];
+		t.age = 0f;
 		t.lifetime = particleLife;
 		t.reynoldsRatio = reynoldsRatio;
 		init.initTracer(t, emitterShape, trans);
@@ -179,7 +180,7 @@ public class FluidView extends Geometry {
 		FluidTracer[] tracers = tracerMesh.getBufferArray();
 		
 		for (int i = 0; i < tracers.length; i++){
-			if (tracers[i].age > tracers[i].lifetime || tracers[i].lifetime <= 0f){
+			if (tracers[i].age >= tracers[i].lifetime || tracers[i].lifetime <= 0f){
 				freeIndexes.add(i);
 			}
 		}
@@ -190,14 +191,13 @@ public class FluidView extends Geometry {
 	public void updateFromControl(float tpf){
 		fluid.updateTransform(getWorldTransform());
 		
-		if (enableSim){
-			fluid.stepSimulation(tpf);
-		}
-
 		if (!burstMode){
 			updateStream(tpf);
 		}
-		
+				
+		if (enableSim){
+			fluid.stepSimulation(tpf);
+		}
 		
 		FluidTracer[] buffer = tracerMesh.getBufferArray();
 		
