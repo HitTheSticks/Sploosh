@@ -183,17 +183,16 @@ public class VortonSpace implements TracerAdvecter {
 	 * Honestly, this is useless unless you just want chaos.
 	 * */
 	public void randomizeVortons(){
-		Vector3f tPos = new Vector3f();
+		
 		Vector3f tVort = new Vector3f();
 		for (Vorton vI : vortons){
 			BufferedVorton v = (BufferedVorton) vI;
-			float s = FastMath.nextRandomFloat() * 1f;
-			tPos.set(FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s);
+			
+			//tPos.set(FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s, FastMath.nextRandomFloat() * s);
 			tVort.set(FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f);
-			v.initializeAll(tPos, tVort);
+			v.accumulateVorticity(tVort);
 			//v.vorticity.set(0.01f, 0.01f, 0.01f);
 		}
-		swapBuffers(); //swap new values to back buffer for first run
 	}
 	
 	/**

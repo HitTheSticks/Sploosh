@@ -154,7 +154,6 @@ public class FluidView extends Geometry {
 		t.lifetime = particleLife;
 		t.reynoldsRatio = reynoldsRatio;
 		init.initTracer(t, emitterShape, trans);
-		
 	}
 	
 	protected float randomComponent(){

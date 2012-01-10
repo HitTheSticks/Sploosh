@@ -32,8 +32,9 @@ public class TestFluid extends SimpleApplication {
 		flyCam.setDragToRotate(true);
 				
 		fluid = new VortonSpace(512, 0.01f, 4);
-		fluid.distributeVortons(new Vector3f(-0.75f, -0.75f, 0f), new Vector3f(0.75f, 0.75f, 0.2f));
-		fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
+		fluid.distributeVortons(new Vector3f(-0.5f, -0.5f, 0f), new Vector3f(0.5f, 0.5f, 1f));
+		fluid.randomizeVortons();
+		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
 		//fluid.injectVortexRing(0.1f, 1f, 10f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		fluid.initializeThreads(4);
 		
