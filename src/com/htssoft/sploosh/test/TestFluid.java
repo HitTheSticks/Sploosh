@@ -1,8 +1,12 @@
 package com.htssoft.sploosh.test;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.htssoft.sploosh.OTreeStorage;
+import com.htssoft.sploosh.SimpleVorton;
 import com.htssoft.sploosh.VortonSpace;
 import com.htssoft.sploosh.presentation.FluidView;
 import com.htssoft.sploosh.presentation.FluidVortonView;
+import com.htssoft.sploosh.space.OTree;
 import com.jme3.app.SimpleApplication;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
@@ -15,6 +19,7 @@ public class TestFluid extends SimpleApplication {
 	public static final String TOGGLE_TREE = "TESTFLUID_toggle_tree";
 	public static final String PAUSE_SIM = "TESTFLUID_pause_sim";
 	public static final String TOGGLE_VORTON = "TESTFLUID_toggle_vorton";
+	public static final String DUMP_TREE = "TESTFLUID_dump_tree";
 	
 	FluidVortonView fvv;
 	FluidView fv;
@@ -64,10 +69,15 @@ public class TestFluid extends SimpleApplication {
 		}
 		//flyCam.setEnabled(false);
 		
-		inputManager.addMapping(TOGGLE_TREE, new KeyTrigger(KeyInput.KEY_T));
 		inputManager.addMapping(TOGGLE_VORTON, new KeyTrigger(KeyInput.KEY_Y));
 		inputManager.addMapping(PAUSE_SIM, new KeyTrigger(KeyInput.KEY_U));
+		inputManager.addMapping(DUMP_TREE, new KeyTrigger(KeyInput.KEY_T));
 		inputManager.addListener(new DebugActionListener(), TOGGLE_TREE, PAUSE_SIM, TOGGLE_VORTON);
+	}
+	
+	protected void dumpTree(){
+		OTree copy = fluid.getLastTreeForDebug().deepCopy();
+		OTreeStorage.dump(copy, "./dump.otree");
 	}
 
 	protected class DebugActionListener implements ActionListener {
@@ -97,6 +107,9 @@ public class TestFluid extends SimpleApplication {
 				else {
 					rootNode.detachChild(fvv);
 				}
+			}
+			else if (name.equals(DUMP_TREE)){
+				dumpTree();
 			}
 		}
 		

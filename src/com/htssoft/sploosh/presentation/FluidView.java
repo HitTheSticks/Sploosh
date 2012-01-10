@@ -1,8 +1,10 @@
 package com.htssoft.sploosh.presentation;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.List;
 
+import com.htssoft.sploosh.TracerAdvecter;
 import com.htssoft.sploosh.VortonSpace;
 import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.export.JmeExporter;
@@ -25,17 +27,27 @@ import com.jme3.scene.control.Control;
  * */
 public class FluidView extends Geometry {
 	protected FluidTracerMesh tracerMesh;
-	protected VortonSpace fluid;
+	protected TracerAdvecter fluid;
 	protected int nTracers;
 	protected boolean enableSim = true;
 	protected float reynoldsRatio = 1f;
 	protected FluidTracerAffector affector;
 	protected FluidTracerInitializer init;
 	protected EmitterShape emitterShape;
+	protected boolean burstMode = true;
+	protected ArrayDeque<Integer> freeIndexes;
+	protected float streamPerSec = 0f;
+	protected float streamAccum = 0f;
+	protected float particleLife = 0f;
 	
 	public FluidView(int nTracers, VortonSpace fluid){
 		this.fluid = fluid;
 		this.nTracers = nTracers;
+		freeIndexes = new ArrayDeque<Integer>(nTracers);
+		init();
+	}
+	
+	protected void init(){
 		this.setShadowMode(ShadowMode.Off);
 		this.setQueueBucket(Bucket.Transparent);
 		this.setIgnoreTransform(true);
@@ -51,7 +63,7 @@ public class FluidView extends Geometry {
 		else {
 			fluid.setHasDriver(true);
 			System.out.println("Driving.");
-		}
+		}		
 	}
 	
 	public void setReynoldsRatio(float r){
@@ -68,6 +80,16 @@ public class FluidView extends Geometry {
 	
 	public void setScale(Vector3f scale){
 		tracerMesh.setScale(scale);
+	}
+	
+	public void setStreamPerSec(float perSec){
+		if (perSec > 0f){
+			burstMode = false;
+			streamPerSec = perSec;
+		}
+		else {
+			burstMode = true;
+		}
 	}
 		
 	public void distributeTracers(Vector3f center, float radius, float lifetime){
@@ -103,35 +125,79 @@ public class FluidView extends Geometry {
 		this.init = init;
 	}
 	
+	public void setParticleLife(float lifetime){
+		particleLife = lifetime;
+	}
+	
+	public void initializeTracers(float lifetime){
+		setParticleLife(lifetime);
+		initializeTracers();
+	}
+	
 	/**
 	 * Initialize tracers from the current shape and affector.
 	 * */
-	public void initializeTracers(float lifetime){
+	public void initializeTracers(){
 		if (init == null || emitterShape == null){
 			throw new IllegalStateException("To initialize tracers this way you must have both a shape and an init set.");
 		}
 		Transform trans = this.getWorldTransform();
 		
 		
-		List<FluidTracer> tracers = tracerMesh.getBuffer();
-		for (FluidTracer t : tracers){
-			t.lifetime = lifetime;
-			t.reynoldsRatio = reynoldsRatio;
-			init.initTracer(t, emitterShape, trans);
+		FluidTracer[] tracers = tracerMesh.getBufferArray();
+		for (int i = 0; i < tracers.length; i++){
+			initTracer(tracers, i, trans);
 		}
+	}
+	
+	protected void initTracer(FluidTracer[] tracers, int index, Transform trans){
+		FluidTracer t = tracers[index];
+		t.lifetime = particleLife;
+		t.reynoldsRatio = reynoldsRatio;
+		init.initTracer(t, emitterShape, trans);
+		
 	}
 	
 	protected float randomComponent(){
 		return FastMath.nextRandomFloat() * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1);
 	}
 	
+	protected boolean emitStreamParticle(FluidTracer[] tracers, Transform trans){
+		Integer unusedIndex = freeIndexes.peek();
+		if (unusedIndex == null){
+			return false;
+		}
+		
+		initTracer(tracers, unusedIndex, trans);
+		
+		return true;
+	}
+	
+	protected void updateStream(float tpf){
+		streamAccum += streamPerSec * tpf;
+		
+		Transform trans = getWorldTransform();
+		FluidTracer[] tracers = tracerMesh.getBufferArray();
+		
+		for (int i = 0; i < tracers.length; i++){
+			if (tracers[i].age > tracers[i].lifetime || tracers[i].lifetime <= 0f){
+				freeIndexes.add(i);
+			}
+		}
+		
+		for (; streamAccum >= 1f && emitStreamParticle(tracers, trans); streamAccum -= 1f);
+	}
 	
 	public void updateFromControl(float tpf){
 		if (enableSim){
 			fluid.stepSimulation(tpf);
 		}
 
-		List<FluidTracer> buffer = tracerMesh.getBuffer();
+		if (!burstMode){
+			updateStream(tpf);
+		}
+		
+		FluidTracer[] buffer = tracerMesh.getBufferArray();
 		
 		if (affector != null){
 			for (FluidTracer t : buffer){

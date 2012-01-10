@@ -31,10 +31,16 @@ public class FluidTracer {
 	/**
 	 * Target lifetime of this tracer in seconds.
 	 * */
-	public float lifetime;
+	public float lifetime = 0f;
 	
 	/**
 	 * How many seconds has this tracer lived?
 	 * */
 	public float age;
+	
+	public void clear(){
+		position.zero();
+		velocity.zero();
+		inertia.zero();
+	}
 }

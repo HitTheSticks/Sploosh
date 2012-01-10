@@ -1,6 +1,7 @@
 package com.htssoft.sploosh;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -14,7 +15,7 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 
-public class VortonSpace {
+public class VortonSpace implements TracerAdvecter {
 	public static final float VORTON_RADIUS = 0.1f;
 	public static final float VORTON_RADIUS_SQ = VORTON_RADIUS * VORTON_RADIUS;
 	public static final float VORTON_RADIUS_CUBE = VORTON_RADIUS * VORTON_RADIUS * VORTON_RADIUS;
@@ -450,10 +451,11 @@ public class VortonSpace {
 	 * with the new positions.
 	 * @param tpf how much time to simulate for particle advection. In reality, particles are advanced by min(tpf, DT).
 	 * */
-	public void advectTracers(List<FluidTracer> tracerPositions, float tpf){
+	public void advectTracers(FluidTracer[] tracers, float tpf){
 		if (vortonTree == null){
 			buildVortonTree();
 		}
+		List<FluidTracer> tracerPositions = Arrays.asList(tracers);
 		this.currentTPF = tpf;
 		outstandingWorkItems.set(tracerPositions.size());
 		tracerWork.addAll(tracerPositions);
@@ -759,7 +761,7 @@ public class VortonSpace {
 				} catch (InterruptedException ex) {
 					break mainloop;
 				}
-				
+								
 				localVortons.clear();
 				vortonTree.getInfluentialVortons(tracer.position, localVortons);
 				TracerMath.advectTracer(tracer, localVortons, vars, currentTPF);

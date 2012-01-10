@@ -39,25 +39,12 @@ public class TracerMath {
 		accum.addLocal(temp1);
 	}
 
-	public static void advectWorldTracer(FluidTracer tracer, Vector3f localPosition, List<Vorton> influences, ThreadVars vars, float currentTPF){
-		Vector3f fieldVelocity = vars.vec[0];
-		computeVelocityFromVortons(localPosition, influences, fieldVelocity, vars.vec[1], vars.vec[2]);
-		if (fieldVelocity.length() < tracer.velocity.length()){
-			tracer.velocity.interpolate(fieldVelocity, currentTPF);
-		}
-	}
-	
-	/**
-	 * Move a tracer.
-	 * */
-	public static void advectTracer(FluidTracer tracer, List<Vorton> influences, ThreadVars vars, float currentTPF){
-		Vector3f fieldVel = vars.temp0;
+	public static void moveTracer(FluidTracer tracer, Vector3f fluidVelocity, ThreadVars vars, float tpf){
 		Vector3f moveVel = vars.vec[0];
-		computeVelocityFromVortons(tracer.position, influences, fieldVel, vars.temp1, vars.temp2);
-		float step = VortonSpace.DT < currentTPF ? VortonSpace.DT : currentTPF;
+		Vector3f fieldVel = vars.vec[1];
 
-		moveVel.set(0, 0, 0);
-		
+		float step = VortonSpace.DT < tpf ? VortonSpace.DT : tpf;
+		fieldVel.set(fluidVelocity);
 		fieldVel.multLocal(tracer.reynoldsRatio); //fluid contribution
 		moveVel.set(tracer.inertia).multLocal(1f - tracer.reynoldsRatio); //inertial contribution
 		moveVel.addLocal(fieldVel);
@@ -69,6 +56,15 @@ public class TracerMath {
 		tracer.inertia.addLocal(moveVel);
 		
 		tracer.age += step;
+	}
+	
+	/**
+	 * Move a tracer.
+	 * */
+	public static void advectTracer(FluidTracer tracer, List<Vorton> influences, ThreadVars vars, float currentTPF){
+		Vector3f fieldVel = vars.temp0;
+		computeVelocityFromVortons(tracer.position, influences, fieldVel, vars.temp1, vars.temp2);
+		moveTracer(tracer, fieldVel, vars, currentTPF);
 	}
 
 }

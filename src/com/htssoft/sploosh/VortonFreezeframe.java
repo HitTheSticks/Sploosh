@@ -8,7 +8,7 @@ import com.htssoft.sploosh.space.OTree;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 
-public class VortonFreezeframe {
+public class VortonFreezeframe implements TracerAdvecter {
 	OTree vortonTree;
 	protected Thread[] threads;
 	protected FluidTracer[] currentWorkingTracers;
@@ -35,6 +35,18 @@ public class VortonFreezeframe {
 	 * */
 	public void updateTransform(Transform trans){
 		objectTransform.set(trans);
+	}
+	
+	public boolean hasDriver(){
+		return true;
+	}
+	
+	public void setHasDriver(boolean hasDriver){
+		
+	}
+	
+	public void stepSimulation(float tpf){
+		
 	}
 	
 	/**
@@ -119,6 +131,9 @@ public class VortonFreezeframe {
 				
 				for (int i = workRange.first; i <= workRange.last; i++){
 					FluidTracer tracer = currentWorkingTracers[i];
+					if (tracer.age > tracer.lifetime || tracer.age < 0f){
+						continue;
+					}
 					localVortons.clear();
 					
 					objectTransform.transformInverseVector(tracer.position, transformedPos);
@@ -128,13 +143,7 @@ public class VortonFreezeframe {
 					
 					objectTransform.getRotation().multLocal(workingVel);
 					
-					tracer.velocity.set(workingVel); //now, do we set the velocity, or...
-					//tracer.velocity.interpolate(workingVel, currentTPF); //...drag? or...
-					//tracer.velocity.addLocal(workingVel.mult(currentTPF)); //...different drag?
-					
-					
-					vars.temp0.set(tracer.velocity).multLocal(currentTPF);
-					tracer.position.addLocal(vars.temp0);
+					TracerMath.moveTracer(tracer, workingVel, vars, currentTPF);
 				}
 				
 				completedRanges.add(workRange);
