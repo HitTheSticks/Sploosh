@@ -29,6 +29,11 @@ public class FluidTracer {
 	public float reynoldsRatio = 1f;
 	
 	/**
+	 * Particle's physical radius.
+	 * */
+	public float radius = 0.1f;
+	
+	/**
 	 * Target lifetime of this tracer in seconds.
 	 * */
 	public float lifetime = 0f;

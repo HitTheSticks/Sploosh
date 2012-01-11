@@ -2,6 +2,7 @@ package com.htssoft.sploosh;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
@@ -13,8 +14,8 @@ public class VortonFreezeframe implements TracerAdvecter {
 	OTree vortonTree;
 	protected Thread[] threads;
 	protected FluidTracer[] currentWorkingTracers;
-	protected LinkedBlockingQueue<WorkRange> workRanges = new LinkedBlockingQueue<VortonFreezeframe.WorkRange>();
-	protected LinkedBlockingQueue<WorkRange> completedRanges = new LinkedBlockingQueue<VortonFreezeframe.WorkRange>();
+	protected LinkedBlockingQueue<WorkRange> workRanges = new LinkedBlockingQueue<WorkRange>();
+	protected CountDownLatch workCompleted;
 	protected boolean debugPrintln = true;
 	protected float currentTPF;
 	protected Transform objectTransform = new Transform();
@@ -70,58 +71,19 @@ public class VortonFreezeframe implements TracerAdvecter {
 	 * don't move, you can expect different motion.
 	 * */
 	public void advectTracers(FluidTracer[] tracers, float tpf){
-		completedRanges.clear();
 		currentWorkingTracers = tracers;
 		currentTPF = tpf;
 		
-		//ideally, how big is a block?
-		int blockSize = tracers.length / threads.length;
-		int maxIndex = tracers.length - 1;
+		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, threads.length);
+		workCompleted = new CountDownLatch(ranges.size());
 		
-		int remainingCounter = tracers.length;
-		int start = 0;
-		int workItems = 0;
-		boolean remainderFlag = false;
-		//I'm kinda tired, so yes, I'm sure there's something way more elegant.
-		while (remainingCounter > 0){ 
-			workItems++;
-			remainingCounter -= blockSize;
-			int end = start + blockSize - 1;
-			
-			if (end > maxIndex){
-				end = maxIndex;
-			}
-			
-			/*
-			 * I think this heuristic works for small numbers of threads
-			 * (as is typical on most computers). At least none of the
-			 * numbers I've run through here have given wildly stupid
-			 * answers with, like, 4 or 8 or 1741 threads.
-			 * */
-			if (remainingCounter < blockSize){
-				end += remainingCounter;
-				remainderFlag = true;
-			}
-			
-			workRanges.add(new WorkRange(start, end));
-			start = end + 1;
-			
-			if (remainderFlag){
-				break;
-			}
-		}
+		workRanges.addAll(ranges);
 		
-		while (workItems > 0){
-			try {
-				completedRanges.take();
-				workItems--;
-			} catch (InterruptedException e) {
-				System.err.println("GL Thread interrupted?");
-				e.printStackTrace();
-				break;
-			}
+		try {
+			workCompleted.await();
+		} catch (InterruptedException ex) {
+			ex.printStackTrace();
 		}
-		completedRanges.clear();
 	}
 	
 	public void traceVortons(List<Vector3f> vortons){
@@ -162,7 +124,7 @@ public class VortonFreezeframe implements TracerAdvecter {
 					
 					objectTransform.transformInverseVector(tracer.position, transformedPos);
 					
-					vortonTree.getInfluentialVortons(vars.temp0, localVortons);
+					vortonTree.getInfluentialVortons(vars.temp0, tracer.radius, localVortons);
 					TracerMath.computeVelocityFromVortons(transformedPos, localVortons, workingVel, vars.temp0, vars.temp1);
 					
 					objectTransform.getRotation().multLocal(workingVel);
@@ -170,21 +132,8 @@ public class VortonFreezeframe implements TracerAdvecter {
 					TracerMath.moveTracer(tracer, workingVel, vars, currentTPF);
 				}
 				
-				completedRanges.add(workRange);
+				workCompleted.countDown();
 			}
-		}
-	}
-
-	/**
-	 * A range of work for a worker thread.
-	 * */
-	protected class WorkRange {
-		final int first;
-		final int last;
-
-		WorkRange(int first, int last){
-			this.first = first;
-			this.last = last;
 		}
 	}
 }

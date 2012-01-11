@@ -210,6 +210,41 @@ public class OTreeNode {
 		}
 	}
 	
+	protected void getInfluentialVortons(Vector3f pos, float searchRadius, Collection<Vorton> storage){
+		if (vortonsPassedThroughHere == 0){
+			return;
+		}
+		
+		if (children == null){ //leaf node
+			if (contains(pos) /*|| 
+					pos.distanceSquared(superVorton.getPosition()) < searchRadius)*/){ //contains point, or should
+				storage.addAll(items);
+			}
+						
+			return;
+		}
+		
+		//internal node
+		
+		if (this.contains(pos)){ //inside bounding box
+			for (OTreeNode c : children){
+				if (c == null){
+					continue;
+				}
+				if (c.contains(pos)){
+					c.getInfluentialVortons(pos, searchRadius, storage);
+				}
+				else if (pos.distanceSquared(c.superVorton.getPosition()) < searchRadius){
+					storage.add(c.superVorton);
+				}
+			}
+			return;
+		}
+		
+		storage.add(superVorton);
+	}
+	
+	
 	/**
 	 * Get the list of vortons (super and elementary) that contribute
 	 * to the given position's velocity.
@@ -218,28 +253,28 @@ public class OTreeNode {
 	 * reading. Anybody know what the difference is between this and formal
 	 * "fast multipole method"?]
 	 * */
-	protected void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
-		if (!contains(pos)){
-			Vector3f superVort = superVorton.getVort();
-			if (superVort.x != 0f || superVort.y != 0f || superVort.z != 0f){ //non-zero vort contributes
-				storage.add(superVorton);
-			}
-			return;
-		}
-		
-		if (children == null){
-			storage.addAll(items);
-			return;
-		}
-		
-		for (OTreeNode child : children){
-			if (child == null){
-				continue;
-			}
-			
-			child.getInfluentialVortons(pos, storage);
-		}
-	}
+//	protected void getInfluentialVortons(Vector3f pos, List<Vorton> storage){
+//		if (!contains(pos)){
+//			Vector3f superVort = superVorton.getVort();
+//			if (superVort.x != 0f || superVort.y != 0f || superVort.z != 0f){ //non-zero vort contributes
+//				storage.add(superVorton);
+//			}
+//			return;
+//		}
+//		
+//		if (children == null){
+//			storage.addAll(items);
+//			return;
+//		}
+//		
+//		for (OTreeNode child : children){
+//			if (child == null){
+//				continue;
+//			}
+//			
+//			child.getInfluentialVortons(pos, storage);
+//		}
+//	}
 	
 	/**
 	 * Get all of the Vortons in the given cell.

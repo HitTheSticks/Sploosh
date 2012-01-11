@@ -38,6 +38,7 @@ public class FluidView extends Geometry {
 	protected float streamPerSec = 0f;
 	protected float streamAccum = 0f;
 	protected float particleLife = 0f;
+	protected float particleRadius = 0.1f;
 	
 	public FluidView(int nTracers, TracerAdvecter fluid){
 		this.fluid = fluid;
@@ -81,6 +82,10 @@ public class FluidView extends Geometry {
 		tracerMesh.setScale(scale);
 	}
 	
+	public void setTracerRadius(float r){
+		particleRadius = r;
+	}
+	
 	public void setStreamPerSec(float perSec){
 		if (perSec > 0f){
 			burstMode = false;
@@ -101,6 +106,7 @@ public class FluidView extends Geometry {
 			t.position.normalizeLocal();
 			t.position.multLocal(radius * FastMath.nextRandomFloat());
 			t.position.addLocal(center);
+			t.radius = particleRadius;
 			t.reynoldsRatio = reynoldsRatio;
 			trans.transformVector(t.position, t.position);
 		}
@@ -154,6 +160,7 @@ public class FluidView extends Geometry {
 		t.age = 0f;
 		t.lifetime = particleLife;
 		t.reynoldsRatio = reynoldsRatio;
+		t.radius = particleRadius;
 		init.initTracer(t, emitterShape, trans);
 	}
 	

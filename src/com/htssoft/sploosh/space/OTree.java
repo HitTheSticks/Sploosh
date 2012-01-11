@@ -90,8 +90,8 @@ public class OTree {
 	/**
 	 * Get the influential vortons for the given position.
 	 * */
-	public void getInfluentialVortons(Vector3f query, List<Vorton> storage) {
-		root.getInfluentialVortons(query, storage);
+	public void getInfluentialVortons(Vector3f query, float searchRadius, List<Vorton> storage) {
+		root.getInfluentialVortons(query, searchRadius, storage);
 	}
 		
 	/**
@@ -138,7 +138,7 @@ public class OTree {
 		ArrayList<Vorton> results = new ArrayList<Vorton>(100);
 		Vector3f qVec = new Vector3f(0.5f, 0.5f, 0.5f);
 		nanos = System.nanoTime();
-		jt.getRoot().getInfluentialVortons(qVec, results);
+		jt.getRoot().getInfluentialVortons(qVec, 0.01f, results);
 		nanos = System.nanoTime() - nanos;
 		System.out.println(nanos + " ns to query.");
 		
