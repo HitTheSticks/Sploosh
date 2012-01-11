@@ -17,6 +17,7 @@ public class OTreeNode {
 	OTreeNode[] children = null;
 	SimpleVorton superVorton = new SimpleVorton();
 	int vortonsPassedThroughHere = 0;
+	float normVortMag = 0f;
 	
 	public OTreeNode(){
 		level = -1;
@@ -45,10 +46,10 @@ public class OTreeNode {
 	 * */
 	protected void insert(Vorton vorton){
 		superVorton.getVort().addLocal(vorton.getVort());
-		//vorton.getPosition().mult(vorton.getVort().length(), tempVec);
-		superVorton.getPosition().addLocal(vorton.getPosition()); //this needs to be eventually divided by n
-		//superVorton.getPosition().addLocal(tempVec);
-		vortonsPassedThroughHere++; //and here's our n.	
+		float vortMag = vorton.getVort().length();
+		superVorton.getPosition().addLocal(vorton.getPosition().mult(vortMag)); //this needs to be eventually divided by n
+		normVortMag += vortMag;
+		vortonsPassedThroughHere++;	
 		
 		if (children != null){
 			chooseChild(vorton.getPosition()).insert(vorton);
@@ -64,7 +65,9 @@ public class OTreeNode {
 	 * */
 	public void updateDerivedQuantities(){
 		if (vortonsPassedThroughHere > 0){
-			superVorton.getPosition().divideLocal(vortonsPassedThroughHere);
+			if (normVortMag != 0){
+				superVorton.getPosition().divideLocal(normVortMag);
+			}
 		}
 		
 		if (children == null){
@@ -85,6 +88,7 @@ public class OTreeNode {
 		superVorton.getPosition().zero();
 		superVorton.getVort().zero();
 		vortonsPassedThroughHere = 0;
+		normVortMag = 0f;
 	}
 	
 	/**

@@ -365,6 +365,48 @@ public class VortonSpace implements TracerAdvecter {
 		}
 	}
 	
+	public void injectRadial(float strength, float scale, Vector3f center){
+		float x, y;
+		Vector3f vort = new Vector3f();
+		Vector3f pos = new Vector3f();
+		
+		for (Vorton vI : vortons){
+			BufferedVorton v = (BufferedVorton) vI;
+			
+			pos.set(v.getPosition());
+			inputTransform.transformInverseVector(pos, pos);
+			
+			x = pos.x;
+			y = pos.y;
+			x *= scale;
+			y *= scale;
+			float norm = norm2(x, y);
+			if (norm >= 0.001f){
+				vort.x = vort.y = 0f;
+				vort.z = radialCurlZ(x, y) * strength;
+				
+				inputTransform.getRotation().multLocal(vort);
+				
+				v.accumulateVorticity(vort);
+			}
+			v.setPosition(v.getPosition());
+		}
+	}
+	
+	private float radialCurlZ(float x, float y){
+		float normQd = norm2Sq(x, y);
+		normQd *= 2;
+		return -(2 * FastMath.abs(x) * FastMath.sign(x) * FastMath.sign(y) / normQd) + (2 * FastMath.abs(y) * FastMath.sign(x) * FastMath.sign(y) / normQd);    
+	}
+	
+	private float norm2Sq(float x, float y){
+		return (x * x) + (y * y);
+	}
+	
+	private float norm2(float x, float y){
+		return FastMath.sqrt((x * x) + (y * y));
+	}
+	
 	public void injectRadial(float strength, Vector3f center){
 		Vector3f fromCenter = new Vector3f();
 		Vector3f vort = new Vector3f();

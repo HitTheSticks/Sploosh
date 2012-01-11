@@ -31,16 +31,16 @@ public class TestFluid extends SimpleApplication {
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
 				
-		fluid = new VortonSpace(512, 0.01f, 4);
-		fluid.distributeVortons(new Vector3f(-0.5f, -0.5f, 0f), new Vector3f(0.5f, 0.5f, 1f));
-		fluid.randomizeVortons();
+		fluid = new VortonSpace(1000, 0.1f, 5);
+		fluid.distributeVortons(new Vector3f(-1f, -1f, 0f), new Vector3f(1f, 1f, 1f));
+		fluid.injectRadial(10, 4, Vector3f.ZERO);
 		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
 		//fluid.injectVortexRing(0.1f, 1f, 10f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		fluid.initializeThreads(4);
 		
 		fv = new FluidView(6000, fluid);
 		fv.setReynoldsRatio(0.99f);
-		fv.distributeTracers(new Vector3f(0f, 0f, 0f), 0.25f, 1f);
+		fv.distributeTracers(new Vector3f(0, 0, 0.25f), 0.5f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
 		mat.getAdditionalRenderState().setPointSprite(true);
 		fv.setMaterial(mat);
