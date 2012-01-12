@@ -3,8 +3,12 @@ package com.htssoft.sploosh.presentation;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import com.htssoft.sploosh.ThreadingUtils;
 import com.htssoft.sploosh.TracerAdvecter;
+import com.htssoft.sploosh.WorkRange;
 import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.export.JmeExporter;
 import com.jme3.export.JmeImporter;
@@ -39,6 +43,10 @@ public class FluidView extends Geometry {
 	protected float streamAccum = 0f;
 	protected float particleLife = 0f;
 	protected float particleRadius = 0.1f;
+	protected CountDownLatch affectionCompleted;
+	protected float currentTPF;
+	protected LinkedBlockingQueue<WorkRange> workRanges = new LinkedBlockingQueue<WorkRange>();
+	protected Thread[] threads;
 	
 	public FluidView(int nTracers, TracerAdvecter fluid){
 		this.fluid = fluid;
@@ -63,7 +71,17 @@ public class FluidView extends Geometry {
 		else {
 			fluid.setHasDriver(true);
 			System.out.println("Driving.");
-		}		
+		}
+		
+		initThreads();
+	}
+	
+	protected void initThreads(){
+		threads = new Thread[ThreadingUtils.getCoreCount()];
+		for (int i = 0; i < threads.length; i++){
+			threads[i] = new Thread(new AffectorThread());
+			threads[i].start();
+		}
 	}
 	
 	public void setReynoldsRatio(float r){
@@ -195,7 +213,24 @@ public class FluidView extends Geometry {
 		for (; streamAccum >= 1f && emitStreamParticle(tracers, trans); streamAccum -= 1f);
 	}
 	
+	protected void affectParticles(FluidTracer[] buffer){
+		if (affector == null){
+			return;
+		}
+		
+		List<WorkRange> ranges = WorkRange.divideWork(buffer.length, buffer, threads.length);
+		affectionCompleted = new CountDownLatch(ranges.size());
+		workRanges.addAll(ranges);
+		
+		try {
+			affectionCompleted.await();
+		} catch (InterruptedException ex) {
+			ex.printStackTrace();
+		}
+	}
+	
 	public void updateFromControl(float tpf){
+		currentTPF = tpf;
 		fluid.updateTransform(getWorldTransform());
 		
 		if (!burstMode){
@@ -209,9 +244,7 @@ public class FluidView extends Geometry {
 		FluidTracer[] buffer = tracerMesh.getBufferArray();
 		
 		if (affector != null){
-			for (FluidTracer t : buffer){
-				affector.affectTracer(t, tpf);
-			}
+			affectParticles(buffer);
 		}
 		
 		fluid.advectTracers(buffer, tpf);
@@ -221,6 +254,31 @@ public class FluidView extends Geometry {
 	}
 	
 	public void renderFromControl(){
+	}
+	
+	private class AffectorThread implements Runnable {
+
+		@Override
+		public void run() {
+			mainloop:
+				while (!Thread.interrupted()){
+					WorkRange workRange;
+					try {
+						workRange = workRanges.take();
+					} catch (InterruptedException ex) {
+						break mainloop;
+					}
+					
+					
+					FluidTracer[] buffer = (FluidTracer[]) workRange.workingSet;
+					for (int i = workRange.first; i <= workRange.last; i++){
+						affector.affectTracer(buffer[i], currentTPF);
+					}
+					
+					affectionCompleted.countDown();
+				}
+		}
+		
 	}
 	
 	private class FluidControl implements Control {

@@ -91,6 +91,7 @@ public class VortonSpace implements TracerAdvecter {
 		backPos.set(backPositions);
 		frontVort.set(vorticities);
 		backVort.set(backVorticities);
+		initializeThreads();
 	}
 	
 	public void setHasDriver(boolean hasDriver){
@@ -130,13 +131,26 @@ public class VortonSpace implements TracerAdvecter {
 	}
 	
 	/**
+	 * Deprecated. The number of threads launched is now
+	 * automatically determined by the number of cores available.
+	 * */
+	@Deprecated
+	public void initializeThreads(int notUsed){
+		initializeThreads();
+	}
+	
+	/**
 	 * Initialize worker threads. This *must* be done before
 	 * the simulation is started.
 	 * 
-	 * @param workThreads how many of each thread type should we use? In general, set
-	 * this to the number of cores you have.
+	 * The number of threads started will be equal to the 
+	 * number of cores returned by ThreadingUtils.
 	 * */
-	public void initializeThreads(int workThreads){
+	public void initializeThreads(){
+		if (threads.size() != 0){
+			return;
+		}
+		int workThreads = ThreadingUtils.getCoreCount();
 		for (int i = 0; i < workThreads; i++){
 			StretchThread st = new StretchThread();
 			Thread t = new Thread(st, "Stretch/Tilt");

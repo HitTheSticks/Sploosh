@@ -45,6 +45,7 @@ public class TracerMath {
 		Vector3f fieldVel = vars.vec[1];
 
 		float step = VortonSpace.DT < tpf ? VortonSpace.DT : tpf;
+		
 		fieldVel.set(fluidVelocity);
 		fieldVel.multLocal(tracer.reynoldsRatio); //fluid contribution
 		moveVel.set(tracer.inertia).multLocal(1f - tracer.reynoldsRatio); //inertial contribution

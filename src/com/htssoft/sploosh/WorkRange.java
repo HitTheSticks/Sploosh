@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WorkRange {
-	final int first;
-	final int last;
+	public final int first;
+	public final int last;
 	public final Object workingSet;
 
 	WorkRange(int first, int last, Object workingSet){

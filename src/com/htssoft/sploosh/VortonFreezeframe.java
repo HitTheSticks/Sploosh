@@ -24,13 +24,35 @@ public class VortonFreezeframe implements TracerAdvecter {
 	
 	public VortonFreezeframe(OTree vortons){
 		vortonTree = vortons;
+		initializeThreads();
 	}
 	
 	public int getNVortons(){
 		return vortonTree.nVortons();
 	}
 	
-	public void spawnThreads(int nThreads){
+	/**
+	 * Deprecated. The number of threads spawned is now
+	 * a function of the number of cores available.
+	 * */
+	@Deprecated
+	public void spawnThreads(int notUsed){
+		spawnThreads();
+	}
+	
+	public void spawnThreads(){
+		initializeThreads();
+	}
+	
+	/**
+	 * Initializes the threads.
+	 * */
+	public void initializeThreads(){
+		if (threads != null){
+			return;
+		}
+		
+		int nThreads = ThreadingUtils.getCoreCount();
 		threads = new Thread[nThreads];
 		for (int i = 0 ; i < threads.length; i++){
 			threads[i] = new Thread(new TracerThread());
@@ -42,6 +64,7 @@ public class VortonFreezeframe implements TracerAdvecter {
 		for (Thread t : threads){
 			t.interrupt();
 		}
+		threads = null;
 	}
 	
 	/**

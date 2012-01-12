@@ -2,6 +2,7 @@ package com.htssoft.sploosh.test;
 
 import com.htssoft.sploosh.OTreeStorage;
 import com.htssoft.sploosh.VortonSpace;
+import com.htssoft.sploosh.affectors.GravitationalAffector;
 import com.htssoft.sploosh.presentation.FluidView;
 import com.htssoft.sploosh.presentation.FluidVortonView;
 import com.htssoft.sploosh.space.OTree;
@@ -36,9 +37,9 @@ public class TestFluid extends SimpleApplication {
 		fluid.randomizeVortons(5);
 		//fluid.injectRadial(400, 4, Vector3f.ZERO);
 		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
-		fluid.initializeThreads(4);
 		
 		fv = new FluidView(6000, fluid);
+		//fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
 		fv.setReynoldsRatio(0.9f);
 		fv.distributeTracers(new Vector3f(0, 0, 0.25f), 0.5f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
