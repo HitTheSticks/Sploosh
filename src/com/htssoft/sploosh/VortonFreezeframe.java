@@ -2,20 +2,22 @@ package com.htssoft.sploosh;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
 import com.htssoft.sploosh.space.OTree;
+import com.htssoft.sploosh.threading.Kernel;
+import com.htssoft.sploosh.threading.StaticThreadGroup;
+import com.htssoft.sploosh.threading.WorkRange;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 
 public class VortonFreezeframe implements TracerAdvecter {
+	protected final static StaticThreadGroup<WorkRange> advectionThreads = 
+		new StaticThreadGroup<WorkRange>("FreezeframeAdvection", TracerKernel.class);
 	OTree vortonTree;
 	protected Thread[] threads;
 	protected FluidTracer[] currentWorkingTracers;
-	protected LinkedBlockingQueue<WorkRange> workRanges = new LinkedBlockingQueue<WorkRange>();
-	protected CountDownLatch workCompleted;
+
 	protected boolean debugPrintln = true;
 	protected float currentTPF;
 	protected Transform objectTransform = new Transform();
@@ -24,7 +26,6 @@ public class VortonFreezeframe implements TracerAdvecter {
 	
 	public VortonFreezeframe(OTree vortons){
 		vortonTree = vortons;
-		initializeThreads();
 	}
 	
 	public int getNVortons(){
@@ -47,24 +48,12 @@ public class VortonFreezeframe implements TracerAdvecter {
 	/**
 	 * Initializes the threads.
 	 * */
+	@Deprecated
 	public void initializeThreads(){
-		if (threads != null){
-			return;
-		}
-		
-		int nThreads = ThreadingUtils.getCoreCount();
-		threads = new Thread[nThreads];
-		for (int i = 0 ; i < threads.length; i++){
-			threads[i] = new Thread(new TracerThread());
-			threads[i].start();
-		}
 	}
 	
+	@Deprecated
 	public void stopThreads(){
-		for (Thread t : threads){
-			t.interrupt();
-		}
-		threads = null;
 	}
 	
 	/**
@@ -97,16 +86,8 @@ public class VortonFreezeframe implements TracerAdvecter {
 		currentWorkingTracers = tracers;
 		currentTPF = tpf;
 		
-		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, threads.length);
-		workCompleted = new CountDownLatch(ranges.size());
-		
-		workRanges.addAll(ranges);
-		
-		try {
-			workCompleted.await();
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
+		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, this, threads.length);
+		advectionThreads.submitWork(ranges, this);
 	}
 	
 	public void traceVortons(List<Vector3f> vortons){
@@ -120,42 +101,28 @@ public class VortonFreezeframe implements TracerAdvecter {
 		}
 	}
 
-	/**
-	 * Thread responsible for update tracer locations.
-	 * */
-	protected class TracerThread implements Runnable {
+	protected static class TracerKernel extends Kernel<WorkRange> {
 		ThreadVars vars = new ThreadVars();
 		Vector3f workingVel = new Vector3f(), transformedPos = new Vector3f();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(vortonTree.nVortons());
-		public void run(){
-			mainloop:
-			while (!Thread.interrupted()){
-				WorkRange workRange;
-				try {
-					workRange = workRanges.take();
-				} catch (InterruptedException ex) {
-					break mainloop;
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(100);
+		public void process(WorkRange workRange){
+			VortonFreezeframe vff = (VortonFreezeframe) workRange.parent;
+			
+			for (int i = workRange.first; i <= workRange.last; i++){
+				FluidTracer tracer = vff.currentWorkingTracers[i];
+				if (tracer.age > tracer.lifetime || tracer.age < 0f){
+					continue;
 				}
+				localVortons.clear();
 				
+				vff.objectTransform.transformInverseVector(tracer.position, transformedPos);
 				
-				for (int i = workRange.first; i <= workRange.last; i++){
-					FluidTracer tracer = currentWorkingTracers[i];
-					if (tracer.age > tracer.lifetime || tracer.age < 0f){
-						continue;
-					}
-					localVortons.clear();
-					
-					objectTransform.transformInverseVector(tracer.position, transformedPos);
-					
-					vortonTree.getInfluentialVortons(vars.temp0, tracer.radius, localVortons);
-					TracerMath.computeVelocityFromVortons(transformedPos, localVortons, workingVel, vars.temp0, vars.temp1);
-					
-					objectTransform.getRotation().multLocal(workingVel);
-					
-					TracerMath.moveTracer(tracer, workingVel, vars, currentTPF);
-				}
+				vff.vortonTree.getInfluentialVortons(vars.temp0, tracer.radius, localVortons);
+				TracerMath.computeVelocityFromVortons(transformedPos, localVortons, workingVel, vars.temp0, vars.temp1);
 				
-				workCompleted.countDown();
+				vff.objectTransform.getRotation().multLocal(workingVel);
+				
+				TracerMath.moveTracer(tracer, workingVel, vars, vff.currentTPF);
 			}
 		}
 	}

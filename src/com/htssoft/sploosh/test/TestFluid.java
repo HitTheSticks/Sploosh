@@ -39,7 +39,7 @@ public class TestFluid extends SimpleApplication {
 		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
 		
 		fv = new FluidView(6000, fluid);
-		//fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
+		fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
 		fv.setReynoldsRatio(0.9f);
 		fv.distributeTracers(new Vector3f(0, 0, 0.25f), 0.5f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");

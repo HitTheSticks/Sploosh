@@ -3,18 +3,29 @@ package com.htssoft.sploosh;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.htssoft.sploosh.presentation.FluidTracer;
 import com.htssoft.sploosh.space.OTree;
 import com.htssoft.sploosh.space.OTreeNode;
+import com.htssoft.sploosh.threading.Kernel;
+import com.htssoft.sploosh.threading.StaticThreadGroup;
+import com.htssoft.sploosh.threading.WorkRange;
 import com.jme3.math.FastMath;
 import com.jme3.math.Transform;
 import com.jme3.math.Vector3f;
 
 public class VortonSpace implements TracerAdvecter {
+	
+	protected static final StaticThreadGroup<WorkRange> tracerThreads = 
+		new StaticThreadGroup<WorkRange>("TracerThreads", TracerKernel.class);
+	
+	protected static final StaticThreadGroup<WorkRange> advectThreads = 
+		new StaticThreadGroup<WorkRange>("AdvectThreads", AdvectKernel.class);
+	
+	protected static final StaticThreadGroup<DiffuseWorkItem> diffuseThreads = 
+		new StaticThreadGroup<DiffuseWorkItem>("DiffuseThreads", DiffuseKernel.class);
+	
 	public static final float VORTON_RADIUS = 0.1f;
 	public static final float VORTON_RADIUS_SQ = VORTON_RADIUS * VORTON_RADIUS;
 	public static final float VORTON_RADIUS_CUBE = VORTON_RADIUS * VORTON_RADIUS * VORTON_RADIUS;
@@ -39,16 +50,11 @@ public class VortonSpace implements TracerAdvecter {
 	protected AtomicReference<Vector3f[]> backPos = new AtomicReference<Vector3f[]>();
 	protected AtomicReference<Vector3f[]> frontVort = new AtomicReference<Vector3f[]>();
 	protected AtomicReference<Vector3f[]> backVort = new AtomicReference<Vector3f[]>();
-		
+	
 	protected OTree vortonTree;
-	protected LinkedBlockingQueue<Vorton> stretchWork = new LinkedBlockingQueue<Vorton>();
-	protected LinkedBlockingQueue<DiffuseWorkItem> diffuseWork = new LinkedBlockingQueue<DiffuseWorkItem>();
-	protected LinkedBlockingQueue<WorkRange> advectWork = new LinkedBlockingQueue<WorkRange>();
-	protected LinkedBlockingQueue<WorkRange> tracerWork = new LinkedBlockingQueue<WorkRange>();
 	protected int gridResolution;
-	protected CountDownLatch outstandingWorkItems;
+	
 	protected float timeAccumulator = 0f;
-	protected ArrayList<Thread> threads = new ArrayList<Thread>();
 	protected float viscosity = 0.5f;
 	protected float currentTPF = 0f;
 	protected boolean debugPrintln = false;
@@ -91,7 +97,6 @@ public class VortonSpace implements TracerAdvecter {
 		backPos.set(backPositions);
 		frontVort.set(vorticities);
 		backVort.set(backVorticities);
-		initializeThreads();
 	}
 	
 	public void setHasDriver(boolean hasDriver){
@@ -146,36 +151,9 @@ public class VortonSpace implements TracerAdvecter {
 	 * The number of threads started will be equal to the 
 	 * number of cores returned by ThreadingUtils.
 	 * */
+	@Deprecated
 	public void initializeThreads(){
-		if (threads.size() != 0){
-			return;
-		}
-		int workThreads = ThreadingUtils.getCoreCount();
-		for (int i = 0; i < workThreads; i++){
-			StretchThread st = new StretchThread();
-			Thread t = new Thread(st, "Stretch/Tilt");
-			t.setDaemon(true);
-			threads.add(t);
-			t.start();
-			
-			AdvectThread at = new AdvectThread();
-			t = new Thread(at, "VortonAdvect");
-			t.setDaemon(true);
-			threads.add(t);
-			t.start();
-			
-			DiffuseThread d = new DiffuseThread();
-			t = new Thread(d, "Diffuse");
-			t.setDaemon(true);
-			threads.add(t);
-			t.start();
-			
-			TracerThread tt = new TracerThread();
-			t = new Thread(tt, "TracerAdvect");
-			t.setDaemon(true);
-			threads.add(t);
-			t.start();
-		}
+
 	}
 	
 	/**
@@ -183,11 +161,8 @@ public class VortonSpace implements TracerAdvecter {
 	 * another call to {@link initializeThreads} is required
 	 * for the simulation to run.
 	 * */
+	@Deprecated
 	public void stopThreads(){
-		for (Thread t : threads){
-			t.interrupt();
-		}
-		threads.clear();
 	}
 	
 	public void randomizeVortons(){
@@ -481,10 +456,6 @@ public class VortonSpace implements TracerAdvecter {
 	 * @param dt how much time to add to the simulation.
 	 * */
 	public void stepSimulation(float dt){
-		if (threads.size() == 0){
-			throw new IllegalStateException("Threads must be initialized with initializeThreads before calling stepSimulation.");
-		}
-		
 		timeAccumulator += dt; //let's be honest, this lags.
 		if (timeAccumulator > DT){ //if you put a "while" instead of an "if", simulation is better, but performance is unacceptable.
 			swapBuffers();
@@ -517,17 +488,10 @@ public class VortonSpace implements TracerAdvecter {
 		}
 		this.currentTPF = tpf;
 		
-		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, threads.size());
-		
-		outstandingWorkItems = new CountDownLatch(ranges.size());
-		tracerWork.addAll(ranges);
+		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, this, tracerThreads.nThreads());
 		
 		long ms = System.currentTimeMillis();
-		try {
-			outstandingWorkItems.await();
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
+		tracerThreads.submitWork(ranges, this);
 		if (debugPrintln)
 			System.out.println("Tracers took (ms): " + (System.currentTimeMillis() - ms));
 	}
@@ -582,16 +546,10 @@ public class VortonSpace implements TracerAdvecter {
 	
 	
 	protected void advectVortons(){
-		List<WorkRange> ranges = WorkRange.divideWork(vortons.length, vortons, threads.size());
+		List<WorkRange> ranges = WorkRange.divideWork(vortons.length, vortons, this, advectThreads.nThreads());
 		
-		outstandingWorkItems = new CountDownLatch(ranges.size());
-		advectWork.addAll(ranges);
 		long ms = System.currentTimeMillis();
-		try {
-			outstandingWorkItems.await();
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
+		advectThreads.submitWork(ranges, this);
 		if (debugPrintln)
 			System.out.println("Advection took (ms): " + (System.currentTimeMillis() - ms));
 		
@@ -601,21 +559,17 @@ public class VortonSpace implements TracerAdvecter {
 		ArrayList<OTreeNode> groups = new ArrayList<OTreeNode>();
 		vortonTree.getRoot().getLeaves(groups);
 		
-		outstandingWorkItems = new CountDownLatch(groups.size());
+		ArrayList<DiffuseWorkItem> work = new ArrayList<DiffuseWorkItem>(groups.size());
 		
 		for (int i = 0; i < groups.size(); i++){
 			OTreeNode node = groups.get(i);
-			DiffuseWorkItem item = new DiffuseWorkItem();
+			DiffuseWorkItem item = new DiffuseWorkItem(this);
 			node.getItems(item.vortons);
-			diffuseWork.add(item);
+			work.add(item);
 		}
 		
 		long ms = System.currentTimeMillis();
-		try {
-			outstandingWorkItems.await();
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
+			diffuseThreads.submitWork(work, this);
 		if (debugPrintln)
 			System.out.println("Diffusion took (ms): " + (System.currentTimeMillis() - ms));
 		
@@ -708,68 +662,65 @@ public class VortonSpace implements TracerAdvecter {
 	 * Work item for diffusion.
 	 * */
 	protected class DiffuseWorkItem {
+		public final VortonSpace owner;
 		public ArrayList<Vorton> vortons = new ArrayList<Vorton>();
+		public DiffuseWorkItem(VortonSpace owner){
+			this.owner = owner;
+		}
+			
 	}
 	
-	/**
-	 * Thread responsible for stretching/tilting.
-	 * */
-	protected class StretchThread implements Runnable {
-		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(1000);
-		
-		public void run(){
-			mainloop:
-			while (!Thread.interrupted()){
-				Vorton vorton;
-				try {
-					vorton = stretchWork.take();
-				} catch (InterruptedException ex) {
-					break mainloop;
-				}
-				
-				localVortons.clear();
-				vortonTree.getInfluentialVortons(vorton.getPosition(), VORTON_RADIUS, localVortons);
-
-				getJacobian(localVortons, vorton.getPosition(), vars);
-				
-				vars.temp0.set(vorton.getVort()); //get vorticity
-				vars.mat.multLocal(vars.temp0); //stretch/tilt
-				vars.temp0.multLocal(DT); //time
-				vorton.getVort(vars.temp1); //old vorticity
-				vars.temp1.addLocal(vars.temp0); //add new vorticity
-				vorton.setVort(vars.temp1); //update
-				outstandingWorkItems.countDown();
-			}
-		}
-	}
+//	/**
+//	 * Thread responsible for stretching/tilting.
+//	 * */
+//	protected class StretchThread implements Runnable {
+//		ThreadVars vars = new ThreadVars();
+//		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(1000);
+//		
+//		public void run(){
+//			mainloop:
+//			while (!Thread.interrupted()){
+//				Vorton vorton;
+//				try {
+//					vorton = stretchWork.take();
+//				} catch (InterruptedException ex) {
+//					break mainloop;
+//				}
+//				
+//				localVortons.clear();
+//				vortonTree.getInfluentialVortons(vorton.getPosition(), VORTON_RADIUS, localVortons);
+//
+//				getJacobian(localVortons, vorton.getPosition(), vars);
+//				
+//				vars.temp0.set(vorton.getVort()); //get vorticity
+//				vars.mat.multLocal(vars.temp0); //stretch/tilt
+//				vars.temp0.multLocal(DT); //time
+//				vorton.getVort(vars.temp1); //old vorticity
+//				vars.temp1.addLocal(vars.temp0); //add new vorticity
+//				vorton.setVort(vars.temp1); //update
+//				outstandingWorkItems.countDown();
+//			}
+//		}
+//	}
 	
 	/**
 	 * Thread responsible for vorton advection.
 	 * */
-	protected class AdvectThread implements Runnable {
+	protected static class AdvectKernel extends Kernel<WorkRange> {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
-		public void run(){
-			mainloop:
-			while (!Thread.interrupted()){
-				WorkRange range;
-				try {
-					range = advectWork.take();
-				} catch (InterruptedException ex) {
-					break mainloop;
-				}
-				
-				
-				for (int i = range.first; i <= range.last; i++){
-					Vorton vorton = vortons[i];
-					localVortons.clear();
-					vortonTree.getInfluentialVortons(vorton.getPosition(), VORTON_RADIUS, localVortons);
-					localVortons.remove(vorton);
-					advectVorton(vorton, localVortons, vars);
-				}
-				
-				outstandingWorkItems.countDown();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(512);
+		
+		public AdvectKernel(){}
+		
+		public void process(WorkRange range){
+			VortonSpace vs = (VortonSpace) range.parent;
+			Vorton[] vortons = (Vorton[]) range.workingSet;
+			for (int i = range.first; i <= range.last; i++){
+				Vorton vorton = vortons[i];
+				localVortons.clear();
+				vs.vortonTree.getInfluentialVortons(vorton.getPosition(), VORTON_RADIUS, localVortons);
+				localVortons.remove(vorton);
+				vs.advectVorton(vorton, localVortons, vars);
 			}
 		}
 	}
@@ -777,52 +728,33 @@ public class VortonSpace implements TracerAdvecter {
 	/**
 	 * Thread responsible for vorticity diffusion.
 	 * */
-	protected class DiffuseThread implements Runnable {
+	protected static class DiffuseKernel extends Kernel<DiffuseWorkItem> {
 		ThreadVars vars = new ThreadVars();
 
-		public void run(){
-			mainloop:
-				while (!Thread.interrupted()){
-					DiffuseWorkItem item;
-					try {
-						item = diffuseWork.take();
-					} catch (InterruptedException ex) {
-						break mainloop;
-					}
-
-					diffuseGroupOfVortons(item.vortons, vars);
-
-					outstandingWorkItems.countDown();
-				}
+		public DiffuseKernel(){}
+		
+		public void process(DiffuseWorkItem item){
+			item.owner.diffuseGroupOfVortons(item.vortons, vars);
 		}
 	}
 	
 	/**
 	 * Thread responsible for update tracer locations.
 	 * */
-	protected class TracerThread implements Runnable {
+	protected static class TracerKernel extends Kernel<WorkRange> {
 		ThreadVars vars = new ThreadVars();
-		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(getNVortons());
-		public void run(){
-			mainloop:
-			while (!Thread.interrupted()){
-				WorkRange range;
-				try {
-					range = tracerWork.take();
-				} catch (InterruptedException ex) {
-					break mainloop;
-				}
-				
-				FluidTracer[] workingSet = (FluidTracer[]) range.workingSet;
-				
-				for (int i = range.first; i <= range.last; i++){
-					FluidTracer tracer = workingSet[i];
-					localVortons.clear();
-					vortonTree.getInfluentialVortons(tracer.position, tracer.radius, localVortons);
-					TracerMath.advectTracer(tracer, localVortons, vars, currentTPF);	
-				}
-				
-				outstandingWorkItems.countDown();
+		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(512);
+		
+		public TracerKernel(){}
+		
+		public void process(WorkRange range){
+			VortonSpace vs = (VortonSpace) range.parent;
+			FluidTracer[] workingSet = (FluidTracer[]) range.workingSet;
+			for (int i = range.first; i <= range.last; i++){
+				FluidTracer tracer = workingSet[i];
+				localVortons.clear();
+				vs.vortonTree.getInfluentialVortons(tracer.position, tracer.radius, localVortons);
+				TracerMath.advectTracer(tracer, localVortons, vars, vs.currentTPF);	
 			}
 		}
 	}
