@@ -14,7 +14,8 @@ public class TracerMath {
 	protected static void computeVelocityFromVortons(Vector3f position, List<Vorton> influences, 
 											  Vector3f store, Vector3f temp1, Vector3f temp2){
 		store.zero();
-		for (Vorton v : influences){
+		for (int i = 0; i < influences.size(); i++){
+			Vorton v = influences.get(i);
 			computeVelocityContribution(position, v, store, temp1, temp2);
 		}
 		store.multLocal(VortonSpace.ONE_OVER_4_PI);

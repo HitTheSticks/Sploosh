@@ -9,6 +9,8 @@ import com.htssoft.sploosh.Vorton;
 import com.jme3.math.Vector3f;
 
 public class OTreeNode {
+	Vector3f tempMin = new Vector3f();
+	Vector3f tempMax = new Vector3f();
 	public Vector3f cellMin = new Vector3f();
 	public Vector3f cellMax = new Vector3f();
 	public final int level;
@@ -47,7 +49,8 @@ public class OTreeNode {
 	protected void insert(Vorton vorton){
 		superVorton.getVort().addLocal(vorton.getVort());
 		float vortMag = vorton.getVort().length();
-		superVorton.getPosition().addLocal(vorton.getPosition().mult(vortMag)); //this needs to be eventually divided by n
+		Vector3f pos = vorton.getPosition();
+		superVorton.getPosition().addLocal(pos.x * vortMag, pos.y * vortMag, pos.z * vortMag); //this needs to be eventually divided by n
 		normVortMag += vortMag;
 		vortonsPassedThroughHere++;	
 		
@@ -95,8 +98,6 @@ public class OTreeNode {
 	 * Split this node.
 	 * */
 	protected void split(int curLevel, int targetLevel){
-		Vector3f tempMin = new Vector3f();
-		Vector3f tempMax = new Vector3f();
 		if (curLevel == targetLevel){
 			if (items == null){
 				items = new ArrayList<Vorton>();

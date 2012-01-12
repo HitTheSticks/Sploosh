@@ -589,7 +589,8 @@ public class VortonSpace implements TracerAdvecter {
 		
 		outstandingWorkItems = new CountDownLatch(groups.size());
 		
-		for (OTreeNode node : groups){
+		for (int i = 0; i < groups.size(); i++){
+			OTreeNode node = groups.get(i);
 			DiffuseWorkItem item = new DiffuseWorkItem();
 			node.getItems(item.vortons);
 			diffuseWork.add(item);
@@ -654,12 +655,14 @@ public class VortonSpace implements TracerAdvecter {
 	}
 	
 	protected void diffuseGroupOfVortons(List<Vorton> vortons, ThreadVars vars){
-		for (Vorton v : vortons){
+		for (int i = 0; i < vortons.size(); i++){
+			Vorton v = vortons.get(i);
 			vars.temp1.zero();
-			for (Vorton w : vortons){
-				if (w == v){
+			for (int j = 0; j < vortons.size(); j++){
+				if (i == j){
 					continue;
 				}
+				Vorton w = vortons.get(i);
 				
 				vars.temp0.set(w.getVort()).subtractLocal(v.getVort()).multLocal(viscosity);
 				vars.temp1.addLocal(vars.temp0);

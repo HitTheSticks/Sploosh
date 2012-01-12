@@ -33,13 +33,13 @@ public class TestFluid extends SimpleApplication {
 				
 		fluid = new VortonSpace(64, 0.01f, 4);
 		fluid.distributeVortons(new Vector3f(-0.05f, -0.05f, 0f), new Vector3f(0.05f, 0.05f, 2f));
-		fluid.randomizeVortons(50);
+		fluid.randomizeVortons(5);
 		//fluid.injectRadial(400, 4, Vector3f.ZERO);
 		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
 		fluid.initializeThreads(4);
 		
 		fv = new FluidView(6000, fluid);
-		fv.setReynoldsRatio(0.99f);
+		fv.setReynoldsRatio(0.9f);
 		fv.distributeTracers(new Vector3f(0, 0, 0.25f), 0.5f, 1f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
 		mat.getAdditionalRenderState().setPointSprite(true);
