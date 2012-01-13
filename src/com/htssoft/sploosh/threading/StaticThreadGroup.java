@@ -75,6 +75,7 @@ public class StaticThreadGroup<WORK_T> {
 		threads = new Thread[nThreads];
 		for (int i = 0; i < nThreads; i++){
 			threads[i] = new Thread(makeKernel(), groupName + i);
+			threads[i].setDaemon(true);
 			threads[i].start();
 		}
 	}
