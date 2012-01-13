@@ -45,6 +45,7 @@ public class FluidView extends Geometry {
 	protected float streamAccum = 0f;
 	protected float particleLife = 0f;
 	protected float particleRadius = 0.1f;
+	protected float particleDrag = 0.8f;
 	protected float currentTPF;
 	
 	public FluidView(int nTracers, TracerAdvecter fluid){
@@ -92,6 +93,10 @@ public class FluidView extends Geometry {
 	
 	public void setTracerRadius(float r){
 		particleRadius = r;
+	}
+	
+	public void setTracerDrag(float drag){
+		particleDrag = drag;
 	}
 	
 	public void setStreamPerSec(float perSec){
@@ -169,6 +174,7 @@ public class FluidView extends Geometry {
 		t.lifetime = particleLife;
 		t.reynoldsRatio = reynoldsRatio;
 		t.radius = particleRadius;
+		t.drag = particleDrag;
 		init.initTracer(t, emitterShape, trans);
 	}
 	

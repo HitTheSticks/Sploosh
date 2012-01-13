@@ -34,6 +34,11 @@ public class FluidTracer {
 	public float radius = 0.1f;
 	
 	/**
+	 * The coefficient of drag.
+	 * */
+	public float drag = 0.8f;
+	
+	/**
 	 * Target lifetime of this tracer in seconds.
 	 * */
 	public float lifetime = 0f;

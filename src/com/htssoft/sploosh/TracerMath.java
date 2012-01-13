@@ -7,7 +7,6 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 
 public class TracerMath {
-
 	/**
 	 * Given a list of vortons, compute the field velocity there.
 	 * */
@@ -47,15 +46,26 @@ public class TracerMath {
 		float step = VortonSpace.DT < tpf ? VortonSpace.DT : tpf;
 		
 		fieldVel.set(fluidVelocity);
+		moveVel.set(tracer.inertia);
+		
+		moveVel.subtractLocal(fieldVel); //relative velocity
+		
+		float F = 0.5f * moveVel.lengthSquared() * tracer.drag * (FastMath.PI * tracer.radius * tracer.radius);
+//		if (F > 0){
+//			System.out.println("her");
+//		}
+		moveVel.negateLocal().normalizeLocal().multLocal(F).addLocal(tracer.inertia);
+		tracer.inertia.set(moveVel);
+		
 		fieldVel.multLocal(tracer.reynoldsRatio); //fluid contribution
-		moveVel.set(tracer.inertia).multLocal(1f - tracer.reynoldsRatio); //inertial contribution
+		moveVel.multLocal(1f - tracer.reynoldsRatio); //inertial contribution
 		moveVel.addLocal(fieldVel);
 		
 		tracer.velocity.set(moveVel);
 		
 		moveVel.multLocal(step);
 		tracer.position.addLocal(moveVel);
-		tracer.inertia.addLocal(moveVel);
+		//tracer.inertia.addLocal(moveVel);
 		
 		tracer.age += step;
 	}

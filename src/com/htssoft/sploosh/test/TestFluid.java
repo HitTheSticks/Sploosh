@@ -2,7 +2,6 @@ package com.htssoft.sploosh.test;
 
 import com.htssoft.sploosh.OTreeStorage;
 import com.htssoft.sploosh.VortonSpace;
-import com.htssoft.sploosh.affectors.GravitationalAffector;
 import com.htssoft.sploosh.presentation.FluidView;
 import com.htssoft.sploosh.presentation.FluidVortonView;
 import com.htssoft.sploosh.space.OTree;
@@ -32,16 +31,16 @@ public class TestFluid extends SimpleApplication {
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
 				
-		fluid = new VortonSpace(64, 0.01f, 4);
-		fluid.distributeVortons(new Vector3f(-0.05f, -0.05f, 0f), new Vector3f(0.05f, 0.05f, 2f));
-		fluid.randomizeVortons(5);
+		fluid = new VortonSpace(1000, 0.6f, 4);
+		fluid.distributeVortons(new Vector3f(-1.0f, -0.5f, -1.0f), new Vector3f(1.0f, 0.5f, 1.0f), 0.05f);
+		//fluid.randomizeVortons(5);
 		//fluid.injectRadial(400, 4, Vector3f.ZERO);
-		//fluid.injectJetRing(0.1f, 1f, 1f, 5f, Vector3f.UNIT_Z, Vector3f.ZERO);
+		fluid.injectJetRing(0.1f, 0.25f, 1f, 14f, Vector3f.UNIT_Y, Vector3f.ZERO);
 		
 		fv = new FluidView(6000, fluid);
-		fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
-		fv.setReynoldsRatio(0.9f);
-		fv.distributeTracers(new Vector3f(0, 0, 0.25f), 0.5f, 1f);
+		//fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
+		fv.setReynoldsRatio(0.7f);
+		fv.distributeTracers(new Vector3f(0, 0, 0.0f), 0.05f, 10f);
 		Material mat = assetManager.loadMaterial("Common/Materials/RedColor.j3m");
 		mat.getAdditionalRenderState().setPointSprite(true);
 		fv.setMaterial(mat);
@@ -54,7 +53,7 @@ public class TestFluid extends SimpleApplication {
 		fvv.setMaterial(mat);
 		
 		rootNode.attachChild(fv);
-		rootNode.attachChild(fvv);
+		//rootNode.attachChild(fvv);
 		
 		treeDebugMaterial = mat.clone();
 		treeDebugMaterial.setColor("Color", ColorRGBA.White);

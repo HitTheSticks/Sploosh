@@ -186,13 +186,17 @@ public class VortonSpace implements TracerAdvecter {
 		}
 	}
 	
+	public void distributeVortons(Vector3f min, Vector3f max){
+		distributeVortons(min, max, 0f);
+	}
+	
 	/**
 	 * Distribute vortons evenly over a grid.
 	 * 
 	 * @param min the lower bound of the grid's bounding box.
 	 * @param max the upper bound of the grid's bounding box.
 	 * */
-	public void distributeVortons(Vector3f min, Vector3f max){
+	public void distributeVortons(Vector3f min, Vector3f max, float jitter){
 
 		float particlesPerSide = (float) Math.cbrt(vortons.length);
 		int nParticles = (int) particlesPerSide;
@@ -214,7 +218,7 @@ public class VortonSpace implements TracerAdvecter {
 						break outer;
 					}
 					BufferedVorton bv = (BufferedVorton) vortons[index];
-					temp.set(x, y, z);
+					temp.set(jitter(x, jitter), jitter(y, jitter), jitter(z, jitter));
 					inputTransform.transformVector(temp, temp);
 					bv.initializeAll(temp, Vector3f.ZERO);
 					++index;
@@ -222,6 +226,14 @@ public class VortonSpace implements TracerAdvecter {
 			}
 		}
 		swapBuffers(); //swap new values to back buffer for first run
+	}
+	
+	protected float jitter(float coord, float jitter){
+		if (jitter <= 0f){
+			return coord;
+		}
+		
+		return coord + (FastMath.nextRandomFloat() * jitter * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1));
 	}
 	
 	/**
