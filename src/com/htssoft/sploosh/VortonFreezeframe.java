@@ -15,7 +15,6 @@ public class VortonFreezeframe implements TracerAdvecter {
 	protected final static StaticThreadGroup<WorkRange> advectionThreads = 
 		new StaticThreadGroup<WorkRange>("FreezeframeAdvection", TracerKernel.class);
 	OTree vortonTree;
-	protected Thread[] threads;
 	protected FluidTracer[] currentWorkingTracers;
 
 	protected boolean debugPrintln = true;
@@ -86,7 +85,7 @@ public class VortonFreezeframe implements TracerAdvecter {
 		currentWorkingTracers = tracers;
 		currentTPF = tpf;
 		
-		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, this, threads.length);
+		List<WorkRange> ranges = WorkRange.divideWork(tracers.length, tracers, this, advectionThreads.nThreads());
 		advectionThreads.submitWork(ranges, this);
 	}
 	
@@ -105,6 +104,11 @@ public class VortonFreezeframe implements TracerAdvecter {
 		ThreadVars vars = new ThreadVars();
 		Vector3f workingVel = new Vector3f(), transformedPos = new Vector3f();
 		ArrayList<Vorton> localVortons = new ArrayList<Vorton>(100);
+		
+		public TracerKernel(){
+			
+		}
+		
 		public void process(WorkRange workRange){
 			VortonFreezeframe vff = (VortonFreezeframe) workRange.parent;
 			
@@ -117,7 +121,7 @@ public class VortonFreezeframe implements TracerAdvecter {
 				
 				vff.objectTransform.transformInverseVector(tracer.position, transformedPos);
 				
-				vff.vortonTree.getInfluentialVortons(vars.temp0, tracer.radius, localVortons);
+				vff.vortonTree.getInfluentialVortons(transformedPos, tracer.radius, localVortons);
 				TracerMath.computeVelocityFromVortons(transformedPos, localVortons, workingVel, vars.temp0, vars.temp1);
 				
 				vff.objectTransform.getRotation().multLocal(workingVel);

@@ -42,30 +42,23 @@ public class TracerMath {
 	public static void moveTracer(FluidTracer tracer, Vector3f fluidVelocity, ThreadVars vars, float tpf){
 		Vector3f moveVel = vars.vec[0];
 		Vector3f fieldVel = vars.vec[1];
+		Vector3f tempVel = vars.vec[2];
 
 		float step = VortonSpace.DT < tpf ? VortonSpace.DT : tpf;
 		
 		fieldVel.set(fluidVelocity);
+		tracer.inertia.multLocal(1f - tracer.drag); //apply drag
 		moveVel.set(tracer.inertia);
 		
-		moveVel.subtractLocal(fieldVel); //relative velocity
-		
-		float F = 0.5f * moveVel.lengthSquared() * tracer.drag * (FastMath.PI * tracer.radius * tracer.radius);
-//		if (F > 0){
-//			System.out.println("her");
-//		}
-		moveVel.negateLocal().normalizeLocal().multLocal(F).addLocal(tracer.inertia);
-		tracer.inertia.set(moveVel);
-		
 		fieldVel.multLocal(tracer.reynoldsRatio); //fluid contribution
+		tempVel.set(fieldVel);
+		tempVel.multLocal(step);
+		tracer.inertia.addLocal(tempVel);
 		moveVel.multLocal(1f - tracer.reynoldsRatio); //inertial contribution
 		moveVel.addLocal(fieldVel);
 		
-		tracer.velocity.set(moveVel);
-		
 		moveVel.multLocal(step);
 		tracer.position.addLocal(moveVel);
-		//tracer.inertia.addLocal(moveVel);
 		
 		tracer.age += step;
 	}

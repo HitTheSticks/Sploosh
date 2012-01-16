@@ -369,6 +369,17 @@ public class VortonSpace implements TracerAdvecter {
 	}
 	
 	/**
+	 * Set a uniform vorticity over the whole field.
+	 * */
+	public void uniformVorticity(Vector3f vort){
+		for (Vorton vI : vortons){
+			BufferedVorton v = (BufferedVorton) vI;
+			v.accumulateVorticity(vort);
+			v.setPosition(v.getPosition());
+		}
+	}
+	
+	/**
 	 * This is the one you want.
 	 * */
 	public void injectRadial(float strength, float scale, Vector3f center){

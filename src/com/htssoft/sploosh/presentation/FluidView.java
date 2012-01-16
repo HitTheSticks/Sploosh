@@ -1,10 +1,11 @@
 package com.htssoft.sploosh.presentation;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
+import java.util.BitSet;
 import java.util.List;
 
 import com.htssoft.sploosh.TracerAdvecter;
+import com.htssoft.sploosh.affectors.NullInit;
 import com.htssoft.sploosh.threading.Kernel;
 import com.htssoft.sploosh.threading.StaticThreadGroup;
 import com.htssoft.sploosh.threading.WorkRange;
@@ -30,6 +31,7 @@ import com.jme3.scene.control.Control;
 public class FluidView extends Geometry {
 	protected static final StaticThreadGroup<WorkRange> affectorThreads = 
 		new StaticThreadGroup<WorkRange>("AffectorThreads", AffectorKernel.class);
+	protected static final NullInit DEFAULT_INIT = new NullInit();
 	
 	protected FluidTracerMesh tracerMesh;
 	protected TracerAdvecter fluid;
@@ -37,10 +39,10 @@ public class FluidView extends Geometry {
 	protected boolean enableSim = true;
 	protected float reynoldsRatio = 1f;
 	protected FluidTracerAffector affector;
-	protected FluidTracerInitializer init;
+	protected FluidTracerInitializer init = DEFAULT_INIT;
 	protected EmitterShape emitterShape;
 	protected boolean burstMode = true;
-	protected ArrayDeque<Integer> freeIndexes;
+	protected BitSet freeIndexes;
 	protected float streamPerSec = 0f;
 	protected float streamAccum = 0f;
 	protected float particleLife = 0f;
@@ -51,7 +53,6 @@ public class FluidView extends Geometry {
 	public FluidView(int nTracers, TracerAdvecter fluid){
 		this.fluid = fluid;
 		this.nTracers = nTracers;
-		freeIndexes = new ArrayDeque<Integer>(nTracers);
 		init();
 	}
 	
@@ -63,6 +64,9 @@ public class FluidView extends Geometry {
 		this.setMesh(tracerMesh = new FluidTracerMesh(nTracers));
 		this.addControl(new FluidControl());
 		this.setCullHint(CullHint.Never);
+		
+		freeIndexes = new BitSet(this.nTracers);
+		freeIndexes.set(0, nTracers);
 		
 		if (fluid.hasDriver()){
 			enableSim = false;
@@ -87,9 +91,6 @@ public class FluidView extends Geometry {
 		this.enableSim = !this.enableSim;
 	}
 	
-	public void setScale(Vector3f scale){
-		tracerMesh.setScale(scale);
-	}
 	
 	public void setTracerRadius(float r){
 		particleRadius = r;
@@ -169,6 +170,7 @@ public class FluidView extends Geometry {
 	}
 	
 	protected void initTracer(FluidTracer[] tracers, int index, Transform trans){
+		freeIndexes.clear(index);
 		FluidTracer t = tracers[index];
 		t.age = 0f;
 		t.lifetime = particleLife;
@@ -182,41 +184,32 @@ public class FluidView extends Geometry {
 		return FastMath.nextRandomFloat() * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1);
 	}
 	
-	protected boolean emitStreamParticle(FluidTracer[] tracers, Transform trans){
-		Integer unusedIndex = freeIndexes.poll();
-		if (unusedIndex == null){
-			return false;
-		}
-		
-		
-		initTracer(tracers, unusedIndex, trans);
-		
-		return true;
-	}
 	
 	protected void updateStream(float tpf){
 		streamAccum += streamPerSec * tpf;
 		
 		Transform trans = getWorldTransform();
 		FluidTracer[] tracers = tracerMesh.getBufferArray();
-		
-		for (int i = 0; i < tracers.length; i++){
-			if (tracers[i].age >= tracers[i].lifetime || tracers[i].lifetime <= 0f){
-				freeIndexes.add(i);
-			}
+	
+		int freeIndex = 0;
+		for (freeIndex = freeIndexes.nextSetBit(freeIndex); freeIndex >= 0 && streamAccum >= 1f; freeIndex = freeIndexes.nextSetBit(freeIndex), streamAccum -= 1f){
+			initTracer(tracers, freeIndex, trans);			
 		}
-		
-		for (; streamAccum >= 1f && emitStreamParticle(tracers, trans); streamAccum -= 1f);
 	}
 	
 	protected void affectParticles(FluidTracer[] buffer){
-		if (affector == null){
-			return;
+		
+		if (affector != null){		
+			List<WorkRange> ranges = WorkRange.divideWork(buffer.length, buffer, this, affectorThreads.nThreads());
+
+			affectorThreads.submitWork(ranges, this);
 		}
 		
-		List<WorkRange> ranges = WorkRange.divideWork(buffer.length, buffer, this, affectorThreads.nThreads());
-		
-		affectorThreads.submitWork(ranges, this);
+		for (int i = 0; i < buffer.length; i++){
+			if (buffer[i].age >= buffer[i].lifetime){
+				freeIndexes.set(i);
+			}
+		}
 	}
 	
 	public void updateFromControl(float tpf){
@@ -233,9 +226,7 @@ public class FluidView extends Geometry {
 		
 		FluidTracer[] buffer = tracerMesh.getBufferArray();
 		
-		if (affector != null){
-			affectParticles(buffer);
-		}
+		affectParticles(buffer);
 		
 		fluid.advectTracers(buffer, tpf);
 		tracerMesh.updateBuffers();

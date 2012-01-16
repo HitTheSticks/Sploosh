@@ -19,7 +19,6 @@ public class FluidTracerMesh extends Mesh {
 	protected FluidTracer[] tracers;
 	protected Vector3f minPosition = new Vector3f();
 	protected Vector3f maxPosition = new Vector3f();
-	protected Vector3f scale = new Vector3f(1f, 1f, 1f);
 	protected Vector3f temp = new Vector3f();
 	
 	public FluidTracerMesh(int nParticles){
@@ -50,13 +49,6 @@ public class FluidTracerMesh extends Mesh {
         setBuffer(Type.Index, 1, ib);
 	}
 	
-	public void setScale(Vector3f scale){
-		this.scale.set(scale);
-	}
-	
-	public Vector3f getScale(){
-		return scale;
-	}
 	
 	public List<FluidTracer> getBuffer(){
 		return Arrays.asList(tracers);
@@ -84,7 +76,6 @@ public class FluidTracerMesh extends Mesh {
 		for (int i = 0; i < tracers.length; i++){
 			FluidTracer t = tracers[i];
 			temp.set(t.position);
-			temp.multLocal(scale);
 			pos.put(temp.x).put(temp.y).put(temp.z);
 			minPosition.minLocal(temp);
 			maxPosition.maxLocal(temp);

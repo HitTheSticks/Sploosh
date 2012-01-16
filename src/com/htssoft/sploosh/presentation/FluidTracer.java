@@ -9,11 +9,6 @@ public class FluidTracer {
 	public final Vector3f position = new Vector3f();
 	
 	/**
-	 * Instantaneous velocity of the tracer at the current time.
-	 * */
-	public final Vector3f velocity = new Vector3f();
-	
-	/**
 	 * This is an intertial component, which may be affected
 	 * by outside forces.
 	 * 
@@ -50,7 +45,6 @@ public class FluidTracer {
 	
 	public void clear(){
 		position.zero();
-		velocity.zero();
 		inertia.zero();
 	}
 }
