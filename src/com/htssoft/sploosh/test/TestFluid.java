@@ -31,7 +31,7 @@ public class TestFluid extends SimpleApplication {
 	
 	@Override
 	public void simpleInitApp() {
-		//getAssetManager().registerLocator("./assets", FileLocator.class);
+		getAssetManager().registerLocator("./assets", FileLocator.class);
 		//mouseInput.setCursorVisible(true);
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
@@ -48,15 +48,15 @@ public class TestFluid extends SimpleApplication {
 		
 		HemisphereSurfaceShape hss = new HemisphereSurfaceShape(0.15f);
 		//UniformInit init = new UniformInit(Vector3f.UNIT_Z.multLocal(10f));
-		BurstAffector init = new BurstAffector(4f);
+		BurstAffector init = new BurstAffector(1f);
 		
 		fv = new FluidView(6000, fluid);
 		rootNode.attachChild(fv);
 		fv.setShape(hss);
 		fv.setInit(init);
 		//fv.setAffector(new GravitationalAffector(Vector3f.ZERO, 2f));
-		fv.setTracerDrag(0.001f);
-		fv.setReynoldsRatio(0.8f);
+		fv.setTracerDrag(100f);
+		fv.setReynoldsRatio(0.5f);
 		fv.setParticleLife(1.5f);
 		fv.setStreamPerSec(1000f);
 		//fv.distributeTracers(new Vector3f(0, 0, 0.0f), 0.05f, 10f);

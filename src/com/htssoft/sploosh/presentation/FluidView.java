@@ -50,9 +50,27 @@ public class FluidView extends Geometry {
 	protected float particleDrag = 0.8f;
 	protected float currentTPF;
 	
+	/**
+	 * Create a fluid view with the given number of tracers,
+	 * tracing the given fluid or vorton freezeframe.
+	 * */
 	public FluidView(int nTracers, TracerAdvecter fluid){
 		this.fluid = fluid;
 		this.nTracers = nTracers;
+		init();
+	}
+	
+	/**
+	 * Create a fluid view with the given number of tracers,
+	 * tracing the given fluid.
+	 * 
+	 * The additional parameter determines whether or not this
+	 * FluidView should drive the simulation.
+	 * */
+	public FluidView(int nTracers, TracerAdvecter fluid, boolean shouldDriveSim){
+		this.fluid = fluid;
+		this.nTracers = nTracers;
+		this.enableSim = shouldDriveSim;
 		init();
 	}
 	
@@ -70,36 +88,70 @@ public class FluidView extends Geometry {
 		
 		if (fluid.hasDriver()){
 			enableSim = false;
-			System.out.println("Not driving.");
 		}
 		else {
 			fluid.setHasDriver(true);
-			System.out.println("Driving.");
 		}
 		
 	}
 	
+	/**
+	 * Set the mixing ratio of fluid viscous motion
+	 * to inertial motion.
+	 * 
+	 * 1.0 yields only fluid motion; 0.0 yields only
+	 * inertial (and affector) motion. Neither extreme
+	 * yields good results. Suggested values are 0.01 to
+	 * 0.99.
+	 * */
 	public void setReynoldsRatio(float r){
 		reynoldsRatio = FastMath.clamp(r, 0f, 1f);
 	}
 	
+	/**
+	 * Should this fluidview drive the simulation?
+	 * 
+	 * If multiple tracers are tracing one fluid,
+	 * the first one that is created will drive it default. 
+	 * */
 	public void enableSim(boolean enable){
 		this.enableSim = enable;
 	}
+	
 	
 	public void toggleSim(){
 		this.enableSim = !this.enableSim;
 	}
 	
-	
+	/**
+	 * Set the nominal radius of tracer particles.
+	 * 
+	 * Please note: THIS IS NOT THE GRAPHICAL RADIUS. 
+	 * 
+	 * This is the radius that the particle engine uses
+	 * when searching for nearby vortons. Generally, this
+	 * can be left at the default value. Values larger
+	 * than the average space between vortons will result
+	 * in severely degraded performance.
+	 * */
 	public void setTracerRadius(float r){
 		particleRadius = r;
 	}
 	
+	/**
+	 * Set the drag quantity for new tracers from this
+	 * fluid view.
+	 * */
 	public void setTracerDrag(float drag){
 		particleDrag = drag;
 	}
 	
+	/**
+	 * Set the number of particles to stream per second.
+	 * 
+	 * Negative numbers (or 0f) will stop further stream
+	 * production.
+	 * */
 	public void setStreamPerSec(float perSec){
 		if (perSec > 0f){
 			burstMode = false;
@@ -109,11 +161,15 @@ public class FluidView extends Geometry {
 			burstMode = true;
 		}
 	}
-		
+	
+	/**
+	 * Distribute tracers randomly in a sphere.
+	 * */
 	public void distributeTracers(Vector3f center, float radius, float lifetime){
 		Transform trans = this.getWorldTransform();
 		
 		List<FluidTracer> tracers = tracerMesh.getBuffer();
+		int i = 0;
 		for (FluidTracer t : tracers){
 			t.lifetime = lifetime;
 			t.position.set(randomComponent(), randomComponent(), randomComponent());
@@ -122,6 +178,7 @@ public class FluidView extends Geometry {
 			t.position.addLocal(center);
 			t.radius = particleRadius;
 			t.reynoldsRatio = reynoldsRatio;
+			freeIndexes.set(i++);
 			trans.transformVector(t.position, t.position);
 		}
 	}
@@ -140,14 +197,24 @@ public class FluidView extends Geometry {
 		this.affector = affector;
 	}
 	
+	/**
+	 * Sets the tracer initializer.
+	 * */
 	public void setInit(FluidTracerInitializer init){
 		this.init = init;
 	}
 	
+	/**
+	 * How long should particles live?
+	 * */
 	public void setParticleLife(float lifetime){
 		particleLife = lifetime;
 	}
 	
+	/**
+	 * Initialize tracers using the current tracer initializer with
+	 * the given lifetime.
+	 * */
 	public void initializeTracers(float lifetime){
 		setParticleLife(lifetime);
 		initializeTracers();
@@ -191,9 +258,11 @@ public class FluidView extends Geometry {
 		Transform trans = getWorldTransform();
 		FluidTracer[] tracers = tracerMesh.getBufferArray();
 	
-		int freeIndex = 0;
-		for (freeIndex = freeIndexes.nextSetBit(freeIndex); freeIndex >= 0 && streamAccum >= 1f; freeIndex = freeIndexes.nextSetBit(freeIndex), streamAccum -= 1f){
-			initTracer(tracers, freeIndex, trans);			
+		int freeIndex = freeIndexes.nextSetBit(0);
+		while (freeIndex >= 0 && freeIndex < nTracers - 1 && streamAccum >= 1f){ 
+			initTracer(tracers, freeIndex, trans);	
+			freeIndex = freeIndexes.nextSetBit(freeIndex + 1);
+			streamAccum -= 1f;
 		}
 	}
 	
@@ -233,10 +302,7 @@ public class FluidView extends Geometry {
 		this.setBoundRefresh();
 		
 	}
-	
-	public void renderFromControl(){
-	}
-	
+		
 	protected static class AffectorKernel extends Kernel<WorkRange> {
 		public AffectorKernel(){
 		}
@@ -293,7 +359,6 @@ public class FluidView extends Geometry {
 
 		@Override
 		public void render(RenderManager rm, ViewPort vp) {
-			renderFromControl();
 		}
 		
 	}

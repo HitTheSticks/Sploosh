@@ -6,7 +6,6 @@ import com.jme3.effect.shapes.EmitterShape;
 import com.jme3.math.Transform;
 
 public class NullInit implements FluidTracerInitializer {
-
 	@Override
 	public void initTracer(FluidTracer tracer, EmitterShape shape, Transform worldTransform) {
 		shape.getRandomPointAndNormal(tracer.position, tracer.inertia);
