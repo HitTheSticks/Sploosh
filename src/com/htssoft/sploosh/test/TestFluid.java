@@ -32,7 +32,7 @@ public class TestFluid extends SimpleApplication {
 	@Override
 	public void simpleInitApp() {
 		getAssetManager().registerLocator("./assets", FileLocator.class);
-		//mouseInput.setCursorVisible(true);
+		//getAssetManager().registerLocator("./sploosh_materials", FileLocator.class);
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
 		
@@ -43,7 +43,6 @@ public class TestFluid extends SimpleApplication {
 		//fluid.injectRadial(4, 4, Vector3f.ZERO);
 		Vector3f c = new Vector3f(0f, 0f, 1f);
 		fluid.injectJetRing(0.1f, 0.25f, 1f, 10f, Vector3f.UNIT_Z, c);
-		
 		//fluid.uniformVorticity(new Vector3f(0f, 0f, -12f));
 		
 		HemisphereSurfaceShape hss = new HemisphereSurfaceShape(0.15f);

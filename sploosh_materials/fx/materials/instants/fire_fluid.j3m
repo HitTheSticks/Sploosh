@@ -1,0 +1,17 @@
+Material fire_fluid : materials/FluidGlow.j3md {
+	Transparent On
+     MaterialParameters {
+     	Texture : fx/textures/pyro/single_fire.png
+     	AlphaMap : True
+     	StartColor : 0.96 0.44 0.0 0.8
+     	EndColor : 0.96 0.11 0.0 0
+     	StartSize : 8
+     	EndSize : 1
+     }
+     
+     AdditionalRenderState {
+     	Blend AlphaAdditive
+     	DepthWrite Off
+     	DepthTest On
+     }
+}
