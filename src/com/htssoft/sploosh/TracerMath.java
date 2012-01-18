@@ -10,7 +10,7 @@ public class TracerMath {
 	/**
 	 * Given a list of vortons, compute the field velocity there.
 	 * */
-	protected static void computeVelocityFromVortons(Vector3f position, List<Vorton> influences, 
+	public static void computeVelocityFromVortons(Vector3f position, List<Vorton> influences, 
 											  Vector3f store, Vector3f temp1, Vector3f temp2){
 		store.zero();
 		for (int i = 0; i < influences.size(); i++){
@@ -23,7 +23,7 @@ public class TracerMath {
 	/**
 	 * Given a vorton, find its influence on the field velocity.
 	 * */
-	protected static void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
+	public static void computeVelocityContribution(Vector3f position, Vorton v, Vector3f accum, Vector3f temp1, Vector3f temp2){
 		temp2.set(position).subtractLocal(v.getPosition());
 		float dist2 = temp2.lengthSquared() + VortonSpace.AVOID_SINGULARITY;
 		float oneOverDist = 1f / FastMath.sqrt(dist2);

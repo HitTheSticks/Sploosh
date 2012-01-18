@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
-
 public class StaticThreadGroup<WORK_T> {
 	protected Thread[] threads;
 	protected LinkedBlockingQueue<WORK_T> waitingWork = new LinkedBlockingQueue<WORK_T>();

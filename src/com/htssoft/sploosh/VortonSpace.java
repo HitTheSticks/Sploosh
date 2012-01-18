@@ -740,10 +740,13 @@ public class VortonSpace implements TracerAdvecter {
 			Vorton[] vortons = (Vorton[]) range.workingSet;
 			for (int i = range.first; i <= range.last; i++){
 				Vorton vorton = vortons[i];
-				localVortons.clear();
+				if (!localVortons.isEmpty()){
+					localVortons.clear();
+				}
 				vs.vortonTree.getInfluentialVortons(vorton.getPosition(), VORTON_RADIUS, localVortons);
 				localVortons.remove(vorton);
 				vs.advectVorton(vorton, localVortons, vars);
+				localVortons.clear();
 			}
 		}
 	}
@@ -775,9 +778,12 @@ public class VortonSpace implements TracerAdvecter {
 			FluidTracer[] workingSet = (FluidTracer[]) range.workingSet;
 			for (int i = range.first; i <= range.last; i++){
 				FluidTracer tracer = workingSet[i];
-				localVortons.clear();
+				if (!localVortons.isEmpty()){
+					localVortons.clear();
+				}
 				vs.vortonTree.getInfluentialVortons(tracer.position, tracer.radius, localVortons);
-				TracerMath.advectTracer(tracer, localVortons, vars, vs.currentTPF);	
+				TracerMath.advectTracer(tracer, localVortons, vars, vs.currentTPF);
+				localVortons.clear();
 			}
 		}
 	}

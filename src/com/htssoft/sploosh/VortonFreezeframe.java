@@ -117,7 +117,9 @@ public class VortonFreezeframe implements TracerAdvecter {
 				if (tracer.age > tracer.lifetime || tracer.age < 0f){
 					continue;
 				}
-				localVortons.clear();
+				if (!localVortons.isEmpty()){
+					localVortons.clear();
+				}
 				
 				vff.objectTransform.transformInverseVector(tracer.position, transformedPos);
 				
@@ -127,6 +129,7 @@ public class VortonFreezeframe implements TracerAdvecter {
 				vff.objectTransform.getRotation().multLocal(workingVel);
 				
 				TracerMath.moveTracer(tracer, workingVel, vars, vff.currentTPF);
+				localVortons.clear(); //be nice to garbage collection.
 			}
 		}
 	}
