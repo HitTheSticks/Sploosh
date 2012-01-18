@@ -122,6 +122,19 @@ public class VortonSpace implements TracerAdvecter {
 		return vortons.length;
 	}
 	
+	protected void backCopy(){
+		Vector3f[] fPos = frontPos.get();
+		Vector3f[] bPos = backPos.get();
+		
+		Vector3f[] fVort = frontVort.get();
+		Vector3f[] bVort = backVort.get();
+		
+		for (int i = 0; i < fPos.length; i++){
+			bPos[i].set(fPos[i]);
+			bVort[i].set(fVort[i]);
+		}
+	}
+	
 	/**
 	 * Swap back and front position/vorticity buffers.
 	 * */
@@ -507,6 +520,7 @@ public class VortonSpace implements TracerAdvecter {
 	 * */
 	public void advectTracers(FluidTracer[] tracers, float tpf){
 		if (vortonTree == null){
+			backCopy();
 			buildVortonTree();
 		}
 		this.currentTPF = tpf;

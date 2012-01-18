@@ -31,8 +31,7 @@ public class TestFluid extends SimpleApplication {
 	
 	@Override
 	public void simpleInitApp() {
-		getAssetManager().registerLocator("./assets", FileLocator.class);
-		//getAssetManager().registerLocator("./sploosh_materials", FileLocator.class);
+		getAssetManager().registerLocator("./sploosh_materials", FileLocator.class);
 		flyCam.setMoveSpeed(1f);
 		flyCam.setDragToRotate(true);
 		
