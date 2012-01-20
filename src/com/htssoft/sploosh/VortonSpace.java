@@ -193,10 +193,15 @@ public class VortonSpace implements TracerAdvecter {
 		for (Vorton vI : vortons){
 			BufferedVorton v = (BufferedVorton) vI;
 			
-			tVort.set(FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f, FastMath.nextRandomFloat() * 0.5f);
+			tVort.set(randomComponent(), randomComponent(), randomComponent());
 			tVort.multLocal(amp);
 			v.accumulateVorticity(tVort);
 		}
+	}
+	
+	
+	protected float randomComponent(){
+		return FastMath.nextRandomFloat() * (FastMath.nextRandomFloat() < 0.5f ? -1 : 1);
 	}
 	
 	public void distributeVortons(Vector3f min, Vector3f max){

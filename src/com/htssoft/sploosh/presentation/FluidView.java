@@ -42,6 +42,7 @@ public class FluidView extends Geometry {
 	protected FluidTracerInitializer init = DEFAULT_INIT;
 	protected EmitterShape emitterShape;
 	protected boolean burstMode = true;
+	protected boolean paused = false;
 	protected BitSet freeIndexes;
 	protected float streamPerSec = 0f;
 	protected float streamAccum = 0f;
@@ -93,6 +94,14 @@ public class FluidView extends Geometry {
 			fluid.setHasDriver(true);
 		}
 		
+	}
+	
+	public void pause(boolean pause){
+		paused = pause;
+	}
+	
+	public boolean isPaused(){
+		return paused;
 	}
 	
 	/**
@@ -284,6 +293,10 @@ public class FluidView extends Geometry {
 	public void updateFromControl(float tpf){
 		currentTPF = tpf;
 		fluid.updateTransform(getWorldTransform());
+		
+		if (paused){
+			return;
+		}
 		
 		if (!burstMode){
 			updateStream(tpf);
