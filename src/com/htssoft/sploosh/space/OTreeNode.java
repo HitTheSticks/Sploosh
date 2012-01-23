@@ -224,16 +224,18 @@ public class OTreeNode {
 						
 			return;
 		}
-		
-		//internal node
-		
-		if (this.contains(pos)){ //inside bounding box
+		else if (this.contains(pos)){ //inside bounding box
 			for (OTreeNode c : children){
 				if (c == null){
 					continue;
 				}
 				if (c.contains(pos)){
-					c.getInfluentialVortons(pos, searchRadius, storage);
+					if (c.children == null){
+						storage.addAll(c.items);
+					}
+					else {
+						c.getInfluentialVortons(pos, searchRadius, storage);
+					}
 				}
 				else if (pos.distanceSquared(c.superVorton.getPosition()) < searchRadius){
 					storage.add(c.superVorton);
@@ -241,8 +243,9 @@ public class OTreeNode {
 			}
 			return;
 		}
-		
-		storage.add(superVorton);
+		else { //internal node that does not contain the query point
+			storage.add(superVorton);
+		}
 	}
 	
 	
