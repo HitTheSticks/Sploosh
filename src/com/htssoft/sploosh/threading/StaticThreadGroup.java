@@ -27,6 +27,9 @@ public class StaticThreadGroup<WORK_T> {
 	 * Submit work to be done.
 	 * */
 	public void submitWork(Collection<WORK_T> workItems, Object submitter){
+		if (workItems.isEmpty()){
+			return;
+		}
 		waitLatch = new CountDownLatch(workItems.size());
 		waitingWork.addAll(workItems);
 		try {
