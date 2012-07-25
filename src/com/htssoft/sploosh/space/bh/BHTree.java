@@ -64,10 +64,18 @@ public abstract class BHTree<BODY_T extends Body> {
 	}
 	
 	/**
+	 * A body has been added through this branch
+	 * of the tree.
+	 * */
+	public boolean isTouched(){
+		return hasBody() || !isLeaf();
+	}
+	
+	/**
 	 * Get influential bodies.
 	 * */
 	public void getInfluential(Vector3f pos, float theta, Collection<BODY_T> storage){
-		if (getSuperBody() == null){
+		if (!isTouched()){
 			return;
 		}
 		
@@ -89,7 +97,7 @@ public abstract class BHTree<BODY_T extends Body> {
 			}
 			return;
 		}
-		else {
+		else { //just use the super body.
 			BODY_T b = getSuperBody();
 			if (b != null){
 				storage.add(getSuperBody());
@@ -106,7 +114,7 @@ public abstract class BHTree<BODY_T extends Body> {
 		}
 		
 		if (!contains(newBody.getPosition())){
-			throw new IllegalStateException("Cannot add outside bounding box.");
+			throw new IllegalStateException("Cannot add outside bounding box. " + newBody.getPosition());
 		}
 		
 		integrateBody(newBody);
@@ -117,6 +125,7 @@ public abstract class BHTree<BODY_T extends Body> {
 				return;
 			}
 			
+			// they have identical position.
 			if (newBody.getPosition().equals(body.getPosition())){
 				overflowList.add(newBody);
 				return;
@@ -129,6 +138,7 @@ public abstract class BHTree<BODY_T extends Body> {
 				for (BODY_T b : overflowList){
 					chooseChild(b.getPosition()).add(b);
 				}
+				overflowList.clear();
 			}
 			this.body = null;
 			chooseChild(newBody.getPosition()).add(newBody);
@@ -149,7 +159,7 @@ public abstract class BHTree<BODY_T extends Body> {
 	public abstract void integrateBody(BODY_T body);
 
 	/**
-	 * Override this to get an updated value.
+	 * Override this to update derived values.
 	 * */
 	public abstract void doUpdate();
 	
@@ -167,12 +177,16 @@ public abstract class BHTree<BODY_T extends Body> {
 	 * Walk through the tree and update derived values.
 	 * */
 	public void updateDerived(){
+		if (!isTouched()){
+			return;
+		}
+		
+		doUpdate();
+		
 		if (isLeaf()){
 			return;
 		}
 
-		doUpdate();
-		
 		for (int i = 0; i < children.length; i++){
 			children[i].updateDerived();
 		}

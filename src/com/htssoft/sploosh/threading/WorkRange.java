@@ -19,7 +19,7 @@ public class WorkRange {
 	public static List<WorkRange> divideWork(int nItems, Object workingSet, Object parent, int nThreads){
 		List<WorkRange> ranges = new ArrayList<WorkRange>();
 		
-		int blockSize = nItems / nThreads;
+		int blockSize = Math.max(1, nItems / nThreads);
 		int maxIndex = nItems - 1;
 		
 		int remainingCounter = nItems;
