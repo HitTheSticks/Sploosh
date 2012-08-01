@@ -68,7 +68,7 @@ public abstract class BHTree<BODY_T extends Body> {
 	 * of the tree.
 	 * */
 	public boolean isTouched(){
-		return hasBody() || !isLeaf();
+		return !isLeaf() || hasBody();
 	}
 	
 	/**
